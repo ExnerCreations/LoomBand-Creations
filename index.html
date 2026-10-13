@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Loom Creations | Premium Custom Bands</title>
     
-    <!-- 1. Supabase JS Library Properly Loaded -->
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -34,7 +34,6 @@
 
         body {
             background-color: var(--bg-main);
-            /* Technical Dot Texture Background */
             background-image: radial-gradient(rgba(0, 0, 0, 0.1) 1.5px, transparent 1.5px);
             background-size: 22px 22px;
             color: var(--text-main);
@@ -521,11 +520,20 @@
 
     <script>
         // ==========================================
-        // SUPABASE & FORMSPREE INTEGRATION
+        // SUPABASE & FORMSPREE INTEGRATION (FIXED)
         // ==========================================
-        // 2. Initialize Supabase Correctly
-        const { createClient } = window.supabase;
-        const _supabase = createClient('https://kpdjcitdvhdgbtsbirkd.supabase.co', 'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma');
+        let _supabase = null;
+        try {
+            const supabaseModule = window.supabase || {};
+            if (supabaseModule.createClient) {
+                _supabase = supabaseModule.createClient(
+                    'https://kpdjcitdvhdgbtsbirkd.supabase.co',
+                    'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma'
+                );
+            }
+        } catch (err) {
+            console.error("Supabase init failed:", err);
+        }
 
         const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
 
@@ -558,22 +566,39 @@
         const validPromoCodes = { 'WELCOME15': 0.15, 'MEGALOOM': 0.20 };
         let currentFilter = 'All';
 
-        // --- 3. Cloud Database Fetch with Error Handling ---
+        // --- Cloud Database Fetch & Auto-Seeding ---
         async function loadCloudData() {
+            if (!_supabase) {
+                products = defaultProducts;
+                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+                return;
+            }
             try {
                 const { data, error } = await _supabase.from('products').select('*');
                 if (error) throw error;
                 if (data && data.length > 0) {
                     products = data;
                 } else {
-                    products = defaultProducts;
+                    // Auto-seed default products into Supabase so it's global immediately!
+                    for (let prod of defaultProducts) {
+                        await _supabase.from('products').insert([{
+                            category: prod.category,
+                            name: prod.name,
+                            price: prod.price,
+                            stock: prod.stock,
+                            image: prod.image,
+                            description: prod.description,
+                            badge: prod.badge,
+                            colors: prod.colors
+                        }]);
+                    }
+                    const { data: freshData } = await _supabase.from('products').select('*');
+                    products = freshData && freshData.length > 0 ? freshData : defaultProducts;
                 }
             } catch(e) {
-                console.warn("Supabase load failed, falling back to defaults.", e);
-                alert("Database Notice: Failed to load live products from Supabase. Falling back to local data. Error: " + e.message);
+                console.warn("Supabase fetch notice (Did you run the SQL table setup script?):", e.message);
                 products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
             }
-            // Categories kept in Local Storage to avoid breaking "add category" if there's no supabase table for it
             categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
         }
 
@@ -668,7 +693,7 @@
 
             const bundleGrid = document.getElementById('bundle-grid');
             bundleGrid.innerHTML = '';
-            let bundles = products.filter(p => p.category.toLowerCase() === 'bundles');
+            let bundles = products.filter(p => p.category && p.category.toLowerCase() === 'bundles');
             bundles.forEach(b => bundleGrid.innerHTML += createProductCardHTML(b));
 
             const featuredGrid = document.getElementById('featured-grid');
@@ -687,7 +712,7 @@
                     <div class="img-wrap"><img src="${prod.image}" alt="${prod.name}"></div>
                     <div class="product-info">
                         <h3 class="product-title">${prod.name}</h3>
-                        <div class="product-price">£${prod.price.toFixed(2)}</div>
+                        <div class="product-price">£${Number(prod.price).toFixed(2)}</div>
                         <div class="product-stock" style="color: ${stockColor};">${stockText}</div>
                     </div>
                 </div>
@@ -716,17 +741,18 @@
 
         function filterCatalog(categoryName) {
             currentFilter = categoryName;
-            document.getElementById('shop-search').value = ""; // Clear search on filter
+            document.getElementById('shop-search').value = "";
             switchPage('items');
         }
 
         function openProductPage(id) {
             activeProduct = products.find(p => p.id === id);
-            activeColor = activeProduct.colors[0] || {name: "Standard", hex: "#000"};
+            if(!activeProduct) return;
+            activeColor = (activeProduct.colors && activeProduct.colors[0]) ? activeProduct.colors[0] : {name: "Standard", hex: "#000"};
 
             document.getElementById('detail-img').src = activeProduct.image;
             document.getElementById('detail-title').innerText = activeProduct.name;
-            document.getElementById('detail-badge').innerText = activeProduct.stock <= 0 ? "SOLD OUT" : activeProduct.badge;
+            document.getElementById('detail-badge').innerText = activeProduct.stock <= 0 ? "SOLD OUT" : (activeProduct.badge || "NEW");
             
             const stockStatus = document.getElementById('detail-stock-status');
             const addBtn = document.getElementById('detail-add-btn');
@@ -741,20 +767,22 @@
                 addBtn.disabled = true; addBtn.innerText = "Unavailable";
             }
 
-            document.getElementById('detail-price').innerText = `£${activeProduct.price.toFixed(2)}`;
+            document.getElementById('detail-price').innerText = `£${Number(activeProduct.price).toFixed(2)}`;
             document.getElementById('detail-desc').innerText = activeProduct.description;
             document.getElementById('detail-qty').value = 1;
 
             const swatches = document.getElementById('detail-swatches');
             swatches.innerHTML = '';
-            activeProduct.colors.forEach((color, idx) => {
-                const div = document.createElement('div');
-                div.className = `swatch ${idx === 0 ? 'selected' : ''}`;
-                div.style.backgroundColor = color.hex;
-                div.title = color.name;
-                div.onclick = (e) => selectColor(color, e.target);
-                swatches.appendChild(div);
-            });
+            if (activeProduct.colors) {
+                activeProduct.colors.forEach((color, idx) => {
+                    const div = document.createElement('div');
+                    div.className = `swatch ${idx === 0 ? 'selected' : ''}`;
+                    div.style.backgroundColor = color.hex;
+                    div.title = color.name;
+                    div.onclick = (e) => selectColor(color, e.target);
+                    swatches.appendChild(div);
+                });
+            }
 
             document.getElementById('admin-btn').style.display = (user && user.email === 'LeonardoNaracc1@outlook.com') ? 'block' : 'none';
             switchPage('product');
@@ -861,7 +889,7 @@
             let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             let discountAmt = subtotal * activeDiscount;
             
-            let delivery = 5.00; // Default Standard
+            let delivery = 5.00;
             if (address.includes('BB5')) delivery = 0.00;
 
             let total = Math.max(0, (subtotal - discountAmt) + delivery);
@@ -869,12 +897,12 @@
             btnSpan.innerText = `Place Order (£${total.toFixed(2)})`;
         }
 
-        // --- Checkout Flow (Supabase + Formspree) ---
+        // --- Checkout Flow ---
         function initiateCheckout() {
             if (cart.length === 0) return alert("Your cart is empty.");
             for (let item of cart) {
                 let p = products.find(prod => prod.id === item.id);
-                if (p.stock < item.qty) return alert(`Only ${p.stock} of ${p.name} left in stock. Please adjust cart.`);
+                if (p && p.stock < item.qty) return alert(`Only ${p.stock} of ${p.name} left in stock. Please adjust cart.`);
             }
             
             document.getElementById('checkout-error').innerText = "";
@@ -921,11 +949,11 @@
             };
 
             try {
-                // 1. Save to Supabase 'orders' table
-                const { error: dbError } = await _supabase.from('orders').insert([orderData]);
-                if (dbError) throw dbError;
+                if (_supabase) {
+                    const { error: dbError } = await _supabase.from('orders').insert([orderData]);
+                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
+                }
 
-                // 2. Send Email via Formspree
                 const formRes = await fetch(formspreeEndpoint, {
                     method: "POST", 
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -937,22 +965,23 @@
                     })
                 });
 
-                if (!formRes.ok) throw new Error("Email notification failed to send.");
+                if (!formRes.ok) throw new Error("Email notification failed to send via Formspree.");
 
-                // 3. Deduct stock in Supabase globally
-                for (let item of cart) {
-                    let p = products.find(prod => prod.id === item.id);
-                    p.stock -= item.qty;
-                    await _supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
+                if (_supabase) {
+                    for (let item of cart) {
+                        let p = products.find(prod => prod.id === item.id);
+                        if(p) {
+                            p.stock -= item.qty;
+                            await _supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
+                        }
+                    }
                 }
 
-                // Handle Promo usage locally
                 if (appliedPromoCode) {
                     if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(appliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
                     else { let gc = JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []; gc.push(appliedPromoCode); localStorage.setItem('loom_guest_codes_v2', JSON.stringify(gc)); }
                 }
 
-                // Clear cart & UI
                 cart = []; 
                 localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount();
                 activeDiscount = 0; appliedPromoCode = null;
@@ -972,7 +1001,7 @@
             btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
         }
 
-        // --- Custom Orders (Supabase + Formspree integration) ---
+        // --- Custom Orders ---
         async function submitCustomOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn'); const spinner = document.getElementById('form-spinner'); const feedback = document.getElementById('form-feedback');
@@ -994,11 +1023,11 @@
             };
 
             try {
-                // 1. Save to Supabase 'orders'
-                const { error: dbError } = await _supabase.from('orders').insert([requestData]);
-                if (dbError) throw dbError;
+                if (_supabase) {
+                    const { error: dbError } = await _supabase.from('orders').insert([requestData]);
+                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
+                }
 
-                // 2. Send via Formspree
                 const formRes = await fetch(formspreeEndpoint, {
                     method: "POST", 
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -1010,7 +1039,7 @@
                     })
                 });
 
-                if (!formRes.ok) throw new Error("Email failed to send.");
+                if (!formRes.ok) throw new Error("Email failed to send via Formspree.");
 
                 feedback.innerText = "✓ Request Sent Successfully! We will email you shortly."; feedback.style.color = "var(--success)";
                 e.target.reset();
@@ -1087,13 +1116,13 @@
                     </div>`;
             });
 
-            // Fetch orders from Supabase globally
             const ordContainer = document.getElementById('admin-orders-list');
             const errBox = document.getElementById('admin-error-box');
             ordContainer.innerHTML = '<p>Loading inbox...</p>';
             errBox.style.display = 'none';
 
             try {
+                if (!_supabase) throw new Error("Supabase client not initialized.");
                 const { data, error } = await _supabase.from('orders').select('*').order('id', { ascending: false });
                 if (error) throw error;
                 
@@ -1112,7 +1141,6 @@
                         </div>`;
                 });
 
-                // Display custom requests directly within the admin orders panel block
                 if (customReqs.length > 0) {
                     ordContainer.innerHTML += '<h4 style="margin-top:2rem; font-weight:900; text-transform:uppercase;">Custom Requests</h4>';
                     customReqs.forEach((r) => {
@@ -1129,11 +1157,10 @@
             } catch (e) {
                 ordContainer.innerHTML = '';
                 errBox.style.display = 'block';
-                errBox.innerText = "Admin Database Error: " + e.message;
+                errBox.innerText = "Admin Database Error: " + e.message + " (Make sure you ran the SQL query in Supabase!)";
             }
         }
 
-        // --- Admin Deletion Controls ---
         async function deleteInboxOrder(id) {
             if(confirm("Permanently delete this from the database?")) {
                 try {
@@ -1146,7 +1173,6 @@
             }
         }
 
-        // Category stays local to prevent DB breaking
         function adminAddCategory(e) {
             e.preventDefault();
             const name = document.getElementById('new-cat-name').value;
@@ -1195,7 +1221,1297 @@
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product to cloud database: " + err.message);
+                alert("Error adding product to cloud database: " + err.message + " (Did you run the SQL script in Supabase?)");
+            }
+        }
+
+        function openAdminModal() {
+            if(!activeProduct) return;
+            populateAdminCategories();
+            document.getElementById('admin-name').value = activeProduct.name;
+            document.getElementById('admin-category').value = activeProduct.category || "Bracelets";
+            document.getElementById('admin-image').value = activeProduct.image;
+            document.getElementById('admin-price').value = activeProduct.price;
+            document.getElementById('admin-stock').value = activeProduct.stock;
+            document.getElementById('admin-desc').value = activeProduct.description;
+            document.getElementById('admin-colors').value = activeProduct.colors.map(c => `${c.name}|${c.hex}`).join(', ');
+            document.getElementById('admin-modal').style.display = 'flex';
+        }
+
+        function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; }
+        
+        async function saveAdminProduct() {
+            if(!activeProduct) return;
+            activeProduct.name = document.getElementById('admin-name').value;
+            activeProduct.category = document.getElementById('admin-category').value;
+            activeProduct.image = document.getElementById('admin-image').value;
+            activeProduct.price = parseFloat(document.getElementById('admin-price').value);
+            activeProduct.stock = parseInt(document.getElementById('admin-stock').value);
+            activeProduct.description = document.getElementById('admin-desc').value;
+
+            let parsedColors = [];
+            document.getElementById('admin-colors').value.split(',').forEach(pair => {
+                let parts = pair.split('|');
+                if(parts.length === 2) parsedColors.push({name: parts[0].trim(), hex: parts[1].trim()});
+            });
+            if (parsedColors.length > 0) activeProduct.colors = parsedColors;
+
+            try {
+                const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
+                if (error) throw error;
+
+                let idx = products.findIndex(p => p.id === activeProduct.id);
+                if (idx !== -1) products[idx] = activeProduct;
+                
+                closeAdminModal(); renderHomePage(); renderCatalog(); openProductPage(activeProduct.id);
+            } catch(err) {
+                alert("Error updating product in database: " + err.message);
+            }
+        }
+
+        async function deleteAdminProduct() {
+            if(!activeProduct) return;
+            if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
+                try {
+                    const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
+                    if (error) throw error;
+
+                    products = products.filter(p => p.id !== activeProduct.id);
+                    closeAdminModal();
+                    switchPage('items');
+                    renderHomePage();
+                    renderCatalog();
+                } catch(err) {
+                    alert("Error deleting product from database: " + err.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Loom Creations | Premium Custom Bands</title>
+    
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        /* T13 & Premium Variables */
+        :root {
+            --bg-main: #ffffff;
+            --bg-subtle: #f4f4f5;
+            --text-main: #000000;
+            --text-muted: #52525b;
+            --accent-blue: #38bdf8;
+            --border-light: #e4e4e7;
+            --border-dark: #18181b;
+            --dark-surface: #09090b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: radial-gradient(rgba(0, 0, 0, 0.1) 1.5px, transparent 1.5px);
+            background-size: 22px 22px;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top Announcement Marquee */
+        .promo-banner {
+            background-color: var(--dark-surface);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 10px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            z-index: 101;
+            border-bottom: 2px solid var(--accent-blue);
+        }
+        .promo-banner p { display: inline-block; animation: marquee 20s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+        /* Sticky Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 2px solid var(--border-dark);
+        }
+
+        .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2rem; }
+        
+        .brand-logo { font-size: 1.6rem; font-weight: 900; color: var(--text-main); text-decoration: none; cursor: pointer; text-transform: uppercase; letter-spacing: -1px; }
+        .brand-logo span { color: var(--accent-blue); }
+
+        .nav-menu { display: flex; gap: 2.5rem; list-style: none; align-items: center; }
+        .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; position: relative; }
+        .nav-link::after { content: ''; position: absolute; width: 0; height: 3px; bottom: -6px; left: 0; background-color: var(--accent-blue); transition: width 0.3s ease; }
+        .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+        .nav-link:hover, .nav-link.active { color: var(--text-main); }
+
+        .btn-icon { background: none; border: none; cursor: pointer; color: var(--text-main); transition: transform 0.2s; display: flex; align-items: center; }
+        .btn-icon:hover { transform: translateY(-2px); }
+
+        /* Hero Banner */
+        .fullscreen-hero { position: relative; width: 100vw; height: calc(100vh - 42px); display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; border-bottom: 2px solid var(--border-dark); }
+        .fullscreen-hero video { position: absolute; top: 50%; left: 50%; min-width: 100%; min-height: 100%; z-index: 1; transform: translate(-50%, -50%); object-fit: cover; opacity: 0.6; }
+        .hero-content { position: relative; z-index: 2; text-align: center; color: #fff; padding: 0 1rem; animation: fadeInUp 1s ease-out; }
+        .hero-content h1 { font-size: 6rem; font-weight: 900; letter-spacing: -3px; margin-bottom: 0.5rem; text-transform: uppercase; text-shadow: 0 10px 30px rgba(0,0,0,0.8); line-height: 1; }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--dark-surface); color: #fff; padding: 1rem 2.5rem; font-weight: 900; text-transform: uppercase;
+            border: 2px solid var(--dark-surface); cursor: pointer; font-size: 0.9rem; letter-spacing: 1.5px; transition: all 0.2s ease;
+            display: inline-flex; justify-content: center; align-items: center;
+        }
+        .btn-primary:hover { background: #fff; color: var(--dark-surface); box-shadow: 4px 4px 0px rgba(0,0,0,1); transform: translate(-2px, -2px); }
+        .btn-primary:active { transform: scale(0.98); box-shadow: none; }
+        .btn-primary:disabled { background: var(--border-light); border-color: var(--border-light); color: var(--text-muted); cursor: not-allowed; box-shadow: none; transform: none; }
+
+        /* Sections & Grids */
+        main { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 4rem 2rem; }
+        .page-section { display: none; animation: fadeIn 0.4s ease; }
+        .page-section.active { display: block; }
+
+        .section-tag { font-size: 0.85rem; font-weight: 900; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem; background: var(--bg-main); display: inline-block; padding-right: 10px; }
+        .section-header { font-size: 3rem; font-weight: 900; text-transform: uppercase; letter-spacing: -1.5px; margin-bottom: 3rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
+
+        /* Category Grid */
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 4rem; }
+        .category-card { background: #000; border: 2px solid var(--border-dark); position: relative; height: 150px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; transition: all 0.3s ease; }
+        .category-card img { position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; opacity: 0.5; transition: transform 0.5s; }
+        .category-card:hover { transform: translateY(-5px); box-shadow: 8px 8px 0px rgba(0,0,0,1); border-color: var(--accent-blue); }
+        .category-card:hover img { transform: scale(1.1); opacity: 0.7; }
+        .category-card h3 { position: relative; z-index: 2; color: #fff; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; text-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+
+        /* Product Grid */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 3rem; }
+        .product-card { background: var(--bg-main); border: 2px solid var(--border-light); overflow: hidden; position: relative; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; }
+        .product-card:hover { border-color: var(--border-dark); transform: translateY(-5px); box-shadow: 8px 8px 0px rgba(0,0,0,1); }
+        
+        .discount-tag { position: absolute; top: 15px; left: 15px; background: var(--accent-blue); color: #000; font-size: 0.75rem; font-weight: 900; padding: 0.4rem 0.8rem; z-index: 2; text-transform: uppercase; border: 2px solid #000; box-shadow: 3px 3px 0px rgba(0,0,0,1); }
+        .img-wrap { overflow: hidden; aspect-ratio: 1 / 1; background: var(--bg-subtle); border-bottom: 2px solid var(--border-light); }
+        .product-card:hover .img-wrap { border-bottom-color: var(--border-dark); }
+        .img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .product-card:hover .img-wrap img { transform: scale(1.05); }
+        
+        .product-info { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+        .product-title { font-size: 1.25rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+        .product-price { font-size: 1.2rem; font-weight: 900; color: var(--text-main); }
+        .product-stock { font-size: 0.8rem; font-weight: 800; margin-top: 5px; text-transform: uppercase; }
+
+        /* Detail Page */
+        .product-detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+        @media(max-width: 900px) { .product-detail-layout { grid-template-columns: 1fr; } }
+        .product-gallery { border: 2px solid var(--border-dark); padding: 1rem; background: var(--bg-subtle); box-shadow: 10px 10px 0px rgba(0,0,0,1); }
+        .product-gallery img { width: 100%; object-fit: cover; aspect-ratio: 4/3; border: 2px solid var(--border-dark); }
+        
+        .product-meta h1 { font-size: 3.5rem; font-weight: 900; text-transform: uppercase; line-height: 1; margin-bottom: 1rem; letter-spacing: -2px; background: var(--bg-main); display: inline-block; }
+        .product-meta .price { font-size: 2rem; font-weight: 900; color: var(--text-main); margin-bottom: 0.5rem; background: var(--bg-main); display: inline-block; padding: 0 5px; }
+        .product-meta .stock-status { font-size: 0.9rem; font-weight: 900; text-transform: uppercase; margin-bottom: 2rem; background: var(--bg-main); display: inline-block; padding: 0 5px; margin-top: 10px; color: var(--success); }
+        .product-meta .stock-status.out { color: var(--danger); }
+        .product-meta .desc { font-size: 1.1rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem; font-weight: 500; background: var(--bg-main); padding: 1rem; border: 1px dashed var(--border-light); }
+        
+        .color-selector { margin-bottom: 2rem; }
+        .color-selector h4 { font-size: 0.9rem; text-transform: uppercase; font-weight: 900; margin-bottom: 1rem; background: var(--bg-main); display: inline-block; padding-right: 10px; }
+        .swatches { display: flex; gap: 1rem; }
+        .swatch { width: 45px; height: 45px; cursor: pointer; border: 2px solid var(--border-dark); transition: all 0.2s; position: relative; }
+        .swatch.selected { box-shadow: 4px 4px 0px rgba(0,0,0,1); transform: translate(-2px, -2px); }
+        
+        .qty-row { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; }
+        .qty-btn { width: 45px; height: 45px; background: var(--bg-main); border: 2px solid var(--border-dark); font-weight: 900; cursor: pointer; font-size: 1.2rem; transition: background 0.2s; }
+        .qty-btn:hover { background: var(--border-light); }
+        .qty-input { width: 70px; height: 45px; text-align: center; border: 2px solid var(--border-dark); font-weight: 900; font-size: 1.1rem; background: var(--bg-main); }
+
+        /* Inputs, Modals & Autocomplete */
+        .input-wrapper { position: relative; width: 100%; }
+        .input-field, .select-field { width: 100%; padding: 1rem; background: var(--bg-main); border: 2px solid var(--border-light); font-family: inherit; font-weight: 700; color: var(--text-main); font-size: 1rem; }
+        .input-field:focus, .select-field:focus { outline: none; border-color: var(--border-dark); box-shadow: 4px 4px 0px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 1.5rem; position: relative; }
+        .form-group label { display: block; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem; }
+
+        .autocomplete-list { 
+            display: none; width: 100%; max-height: 200px; overflow-y: auto; 
+            background: var(--bg-main); border: 2px solid var(--border-dark); border-top: none; 
+            box-shadow: 4px 4px 0px rgba(0,0,0,1); list-style: none; margin: 0; padding: 0;
+            margin-bottom: 1rem;
+        }
+        .autocomplete-list li { padding: 12px; cursor: pointer; font-weight: 700; font-size: 0.85rem; border-bottom: 1px solid var(--border-light); transition: background 0.2s; }
+        .autocomplete-list li:hover { background: var(--bg-subtle); color: var(--accent-blue); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 200; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; padding: 1rem; overflow-y: auto; }
+        .modal-content { background: var(--bg-main); padding: 3rem; width: 100%; max-width: 600px; position: relative; border: 2px solid var(--border-dark); box-shadow: 15px 15px 0px rgba(0,0,0,1); margin: auto; }
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 2rem; cursor: pointer; color: var(--border-dark); font-weight: 900; line-height: 1; }
+        .close-btn:hover { color: var(--danger); }
+
+        /* Basket View */
+        .basket-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 3rem; }
+        @media(max-width: 900px) { .basket-layout { grid-template-columns: 1fr; } }
+        .basket-item { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; background: var(--bg-main); border: 2px solid var(--border-dark); margin-bottom: 1rem; box-shadow: 4px 4px 0px rgba(0,0,0,0.1); }
+        .basket-item img { width: 100px; height: 100px; object-fit: cover; border: 2px solid var(--border-dark); }
+        .basket-summary { background: var(--bg-main); padding: 2.5rem; border: 2px solid var(--border-dark); height: fit-content; box-shadow: 8px 8px 0px rgba(0,0,0,1); position: sticky; top: 100px;}
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 1rem; font-weight: 900; text-transform: uppercase; }
+
+        /* Notice Boxes */
+        .notice-box { background: var(--bg-subtle); border: 2px dashed var(--danger); padding: 1.2rem; margin-bottom: 1.5rem; font-size: 0.9rem; font-weight: 800; color: var(--text-main); }
+        .notice-box span { color: var(--danger); font-weight: 900; text-transform: uppercase; }
+
+        /* Admin UI */
+        #admin-btn { display: none; background: #000; color: white; border: 2px solid #000; padding: 0.5rem 1rem; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-bottom: 1rem; box-shadow: 4px 4px 0px rgba(0,0,0,1); }
+        #admin-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px rgba(0,0,0,1); }
+        .admin-panel-card { background: var(--bg-subtle); border: 2px solid var(--border-dark); padding: 2rem; margin-bottom: 2rem; box-shadow: 6px 6px 0px rgba(0,0,0,1); }
+        .admin-list-item { background: var(--bg-main); border: 1px solid var(--border-dark); padding: 1rem; margin-bottom: 1rem; position: relative; }
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--danger); font-weight: 900; cursor: pointer; text-transform: uppercase; }
+
+        .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(0,0,0,0.2); border-radius: 50%; border-top-color: #000; animation: spin 1s linear infinite; margin: 0 auto; }
+        
+        .category-heading { font-size: 2.2rem; font-weight: 900; text-transform: uppercase; margin: 3rem 0 1rem; border-bottom: 2px solid var(--border-dark); padding-bottom: 10px;}
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        footer { background: var(--dark-surface); color: var(--text-muted); text-align: center; padding: 4rem 2rem; margin-top: auto; border-top: 2px solid var(--accent-blue); }
+    </style>
+</head>
+<body>
+
+    <!-- Top Announcement -->
+    <div class="promo-banner">
+        <p>🚀 FREE LOCAL DELIVERY (BB5 AREA) &nbsp;&nbsp;|&nbsp;&nbsp; 🔥 USE CODE <strong>WELCOME15</strong> AT CHECKOUT FOR 15% OFF! 🔥 &nbsp;&nbsp;|&nbsp;&nbsp; CUSTOM ORDERS NOW OPEN</p>
+    </div>
+
+    <!-- Navigation -->
+    <header id="main-nav">
+        <div class="nav-container">
+            <a class="brand-logo" onclick="switchPage('home')">Magic Loom <span>Creations</span></a>
+            <ul class="nav-menu">
+                <li><a class="nav-link active" onclick="switchPage('home')" id="nav-home">Home</a></li>
+                <li><a class="nav-link" onclick="switchPage('items')" id="nav-items">Shop</a></li>
+                <li><a class="nav-link" onclick="switchPage('contact')" id="nav-contact">Custom Orders</a></li>
+                <li>
+                    <button class="btn-icon" onclick="openAccountModal()" style="background: var(--bg-main); padding: 5px 10px; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; border: 2px solid var(--border-dark); box-shadow: 2px 2px 0px #000;">
+                        <span id="account-btn-text">Sign In</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="btn-icon" onclick="switchPage('basket')" style="background: var(--dark-surface); color: white; padding: 0.6rem 1.2rem; font-size: 0.85rem; font-weight: 900; border: 2px solid #000;">
+                        CART (<span id="cart-count">0</span>)
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </header>
+
+    <!-- Account / Profile Modal -->
+    <div id="account-modal" class="modal-overlay">
+        <div class="modal-content" id="modal-login-view">
+            <span class="close-btn" onclick="closeAccountModal()">&times;</span>
+            <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing:-1px;">Access</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; font-weight: 600;">Log in to track orders and save data.</p>
+            <input type="email" id="login-email" class="input-field" placeholder="Email Address" style="margin-bottom: 1rem;">
+            <input type="password" class="input-field" placeholder="Password" style="margin-bottom: 1.5rem;">
+            <button class="btn-primary" style="width: 100%;" onclick="processLogin()">Secure Login</button>
+        </div>
+        <div class="modal-content" id="modal-profile-view" style="display: none;">
+            <span class="close-btn" onclick="closeAccountModal()">&times;</span>
+            <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing:-1px;">Profile</h2>
+            <p id="profile-email" style="color: var(--text-main); font-weight: 900; margin-bottom: 2rem;"></p>
+            
+            <button id="profile-admin-btn" class="btn-primary" style="width: 100%; background: #000; color: #fff; border-color: #000; margin-bottom: 1rem; display: none;" onclick="openAdminDashboard()">Admin Panel</button>
+            <button class="btn-primary" style="width: 100%; background: var(--bg-subtle); color: var(--text-main); border-color: var(--border-dark); margin-bottom: 1rem;" onclick="processLogout()">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal (Admin) -->
+    <div id="admin-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAdminModal()">&times;</span>
+            <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1.5rem; letter-spacing:-1px;">Edit Product</h2>
+            
+            <div class="form-group"><label>Product Name</label><input type="text" id="admin-name" class="input-field"></div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="admin-category" class="select-field"></select>
+            </div>
+            <div class="form-group"><label>Image URL</label><input type="text" id="admin-image" class="input-field"></div>
+            <div style="display:flex; gap:1rem;">
+                <div class="form-group" style="flex:1;"><label>Price (£)</label><input type="number" id="admin-price" step="0.01" class="input-field"></div>
+                <div class="form-group" style="flex:1;"><label>Stock Qty</label><input type="number" id="admin-stock" class="input-field"></div>
+            </div>
+            <div class="form-group"><label>Description</label><textarea id="admin-desc" class="input-field" rows="3"></textarea></div>
+            <div class="form-group"><label>Colors (Format: Name|#Hex)</label><textarea id="admin-colors" class="input-field" rows="2"></textarea></div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button class="btn-primary" style="flex: 1; background: var(--danger); border-color: var(--danger); color: white;" onclick="deleteAdminProduct()">🗑️ Delete Listing</button>
+                <button class="btn-primary" style="flex: 1; background: var(--accent-blue); border-color: #000; color:#000;" onclick="saveAdminProduct()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkout-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeCheckoutModal()">&times;</span>
+            <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; letter-spacing:-1px;">Finalize Order</h2>
+            
+            <div class="notice-box">
+                <span>⚠️ Order Timeline & Payment:</span><br>
+                Once submitted, please check your email within 1 week (typically 1-3 days). We will send you a secure payment link and invoice. Your order ships after payment is received.<br><br>
+                <span>📦 Delivery Guarantee:</span><br>
+                If an item is damaged during delivery, a full refund will be issued and a 50% discount coupon will be rewarded.
+            </div>
+            
+            <form id="real-checkout-form" onsubmit="submitRealOrder(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="checkout-name" class="input-field" required placeholder="Jane Doe">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="checkout-email" class="input-field" required placeholder="jane@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Full Shipping Address (Type to search)</label>
+                    <div class="input-wrapper">
+                        <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
+                        <ul id="checkout-address-list" class="autocomplete-list"></ul>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; background: var(--success); border-color: #000; color:#000;" id="checkout-submit-btn">
+                    <span>Place Order</span>
+                    <div class="spinner" id="checkout-spinner"></div>
+                </button>
+                <div id="checkout-error" style="color: var(--danger); font-weight: 900; text-align: center; margin-top: 1rem;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal-overlay">
+        <div class="modal-content" style="text-align: center; border-color: var(--success);">
+            <h2 style="font-size: 3rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; color: var(--success);">Order Placed!</h2>
+            <p style="font-size: 1.2rem; font-weight: 800; margin-bottom: 2rem;">
+                Thank you! Please check your email within 1 week (typically 1-3 days) for your invoice and secure payment details.
+            </p>
+            <button class="btn-primary" onclick="closeSuccessModal()" style="background: var(--dark-surface);">Continue Shopping</button>
+        </div>
+    </div>
+
+    <!-- Hero Banner -->
+    <div class="fullscreen-hero" id="hero-banner">
+        <video autoplay loop muted playsinline>
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-close-up-of-hands-crafting-a-necklace-41544-large.mp4" type="video/mp4">
+        </video>
+        <div class="hero-content">
+            <h1>Magic Loom<br>Creations</h1>
+            <br><br>
+            <button class="btn-primary" style="font-size: 1.1rem; padding: 1.2rem 3rem;" onclick="switchPage('items')">Explore The Drop</button>
+        </div>
+    </div>
+
+    <main>
+        <!-- Home Section -->
+        <section id="page-home" class="page-section active">
+            <!-- Categories -->
+            <div class="section-tag">Explore</div>
+            <div class="section-header">Shop By Category</div>
+            <div class="category-grid" id="category-grid"></div>
+
+            <!-- Bundles -->
+            <div class="section-tag">Value Packs</div>
+            <div class="section-header">Featured Bundles</div>
+            <div class="product-grid" id="bundle-grid"></div>
+
+            <!-- Trending -->
+            <div class="section-tag">Fan Favorites</div>
+            <div class="section-header">Trending Now</div>
+            <div class="product-grid" id="featured-grid"></div>
+        </section>
+
+        <!-- Catalog Section -->
+        <section id="page-items" class="page-section">
+            <div class="section-tag">Full Collection</div>
+            <div class="section-header">
+                Store Catalog
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <input type="text" id="shop-search" class="input-field" placeholder="🔍 Search for bands, kits, or bundles..." oninput="renderCatalog()">
+            </div>
+
+            <div id="catalog-container">
+                <!-- Sorted Categories injected here -->
+            </div>
+        </section>
+
+        <!-- Product Detail Section -->
+        <section id="page-product" class="page-section">
+            <button onclick="switchPage('items')" style="background: var(--bg-main); border: 2px solid transparent; font-weight: 900; text-transform: uppercase; cursor: pointer; color: var(--text-muted); margin-bottom: 2rem; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1rem; padding: 5px;">
+                ← Back to Catalog
+            </button>
+            <button id="admin-btn" onclick="openAdminModal()">⚙️ Edit Product Data</button>
+
+            <div class="product-detail-layout">
+                <div class="product-gallery"><img id="detail-img" src="" alt="Product Image"></div>
+                <div class="product-meta">
+                    <span id="detail-badge" class="discount-tag" style="position: relative; top: 0; left: 0; margin-bottom: 1rem; display: inline-block;"></span>
+                    <h1 id="detail-title" style="background: var(--bg-main); display: inline-block;">Product Title</h1>
+                    <div class="price" id="detail-price" style="background: var(--bg-main); display: inline-block; padding: 0 5px;">£0.00</div><br>
+                    <div id="detail-stock-status" class="stock-status">In Stock: 0</div>
+                    <p class="desc" id="detail-desc">Description</p>
+                    
+                    <div class="color-selector">
+                        <h4>Select Color Variant</h4>
+                        <div class="swatches" id="detail-swatches"></div>
+                    </div>
+                    
+                    <div class="qty-row">
+                        <button class="qty-btn" onclick="updateQty(-1)">-</button>
+                        <input type="number" id="detail-qty" class="qty-input" value="1" min="1" readonly>
+                        <button class="qty-btn" onclick="updateQty(1)">+</button>
+                    </div>
+                    <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 1.2rem;" id="detail-add-btn" onclick="addToCartFromDetail()">Add To Cart</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact / Custom Order Section -->
+        <section id="page-contact" class="page-section">
+            <div class="section-tag">Made For You</div>
+            <div class="section-header">Request Custom Order</div>
+            
+            <div style="background: var(--bg-main); padding: 3rem; border: 2px solid var(--border-dark); max-width: 800px; margin: 0 auto; box-shadow: 10px 10px 0px rgba(0,0,0,1);">
+                <p style="margin-bottom: 1rem; color: var(--text-main); font-weight: 700; font-size: 1.1rem;">
+                    Want a specific color combo or a personalized 3D print? Fill out the form below. 
+                    This request goes directly to our admin team.
+                </p>
+                <p style="margin-bottom: 2rem; color: var(--danger); font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">
+                    * You will receive a secure payment link via email within 1 week of request approval.
+                </p>
+
+                <form id="custom-order-form" onsubmit="submitCustomOrder(event)">
+                    <div class="form-group"><label>Full Name</label><input type="text" name="name" class="input-field" required></div>
+                    <div class="form-group"><label>Email Address</label><input type="email" name="email" class="input-field" required></div>
+                    
+                    <div class="form-group">
+                        <label>Full Shipping Address (Type to search)</label>
+                        <div class="input-wrapper">
+                            <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
+                            <ul id="custom-address-list" class="autocomplete-list"></ul>
+                        </div>
+                    </div>
+
+                    <div class="form-group"><label>Order Details / Vision</label><textarea name="message" class="input-field" rows="5" required placeholder="I'd like a double-fishtail bracelet in Neon Green and Black..."></textarea></div>
+                    
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background: var(--accent-blue); color: #000; border-color: #000;" id="submit-btn">
+                        <span>Send Custom Request</span><div class="spinner" id="form-spinner"></div>
+                    </button>
+                    <div id="form-feedback" style="margin-top: 1rem; text-align: center; font-weight: 900; text-transform: uppercase;"></div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Basket Section -->
+        <section id="page-basket" class="page-section">
+            <div class="section-tag">Secure Checkout</div>
+            <div class="section-header">Your Cart</div>
+            
+            <div class="basket-layout">
+                <div id="basket-items-container"></div>
+                <div class="basket-summary">
+                    <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 2rem; letter-spacing: -1px;">Order Summary</h3>
+                    <div class="form-group">
+                        <label>Promo Code</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="basket-promo" class="input-field" placeholder="Enter code" style="background: var(--bg-subtle);">
+                            <button class="btn-primary" style="padding: 0 1rem;" onclick="applyPromo()">Apply</button>
+                        </div>
+                        <div id="promo-msg" style="font-size: 0.85rem; margin-top: 0.5rem; font-weight: 900; text-transform: uppercase;"></div>
+                    </div>
+                    <hr style="border: none; border-top: 2px solid var(--border-dark); margin: 2rem 0;">
+                    <div class="summary-row"><span style="color: var(--text-muted);">Subtotal</span><span id="summary-subtotal">£0.00</span></div>
+                    <div class="summary-row" style="color: var(--success);"><span>Discount</span><span id="summary-discount">-£0.00</span></div>
+                    <div class="summary-row"><span style="color: var(--text-muted);">Delivery</span><span id="summary-delivery">Calculated at next step</span></div>
+                    <div style="display: flex; justify-content: space-between; font-size: 2.2rem; font-weight: 900; margin: 1.5rem 0 2rem 0; color: var(--text-main); letter-spacing:-1px;">
+                        <span>Total</span><span id="summary-total">£0.00</span>
+                    </div>
+                    <button class="btn-primary" style="width: 100%; background: var(--success); border-color: var(--border-dark); color: #000;" onclick="initiateCheckout()">Proceed to Checkout</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Dashboard Section -->
+        <section id="page-admin" class="page-section">
+            <div class="section-tag" style="background: var(--danger); color: white;">Admin Only</div>
+            <div class="section-header">Control Panel</div>
+            
+            <div id="admin-error-box" style="display:none; background: var(--bg-subtle); border: 2px dashed var(--danger); color: var(--danger); padding: 1rem; margin-bottom: 2rem; font-weight: 900;"></div>
+
+            <div class="admin-panel-card">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Add New Product / Bundle</h3>
+                <form onsubmit="adminAddNewProduct(event)">
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                        <input type="text" id="add-name" class="input-field" placeholder="Product Name" required style="flex:2;">
+                        <select id="add-category" class="select-field" style="flex:1.5;" required></select>
+                        <input type="number" id="add-price" step="0.01" class="input-field" placeholder="Price (£)" required style="flex:1;">
+                        <input type="number" id="add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1;">
+                    </div>
+                    <input type="text" id="add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
+                    <textarea id="add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
+                    <input type="text" id="add-colors" class="input-field" placeholder="Colors (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
+                    <button type="submit" class="btn-primary" style="background: var(--accent-blue); color:#000;">➕ Add to Store</button>
+                </form>
+            </div>
+
+            <div class="admin-panel-card">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Categories</h3>
+                <form style="display:flex; gap:1rem;" onsubmit="adminAddCategory(event)">
+                    <input type="text" id="new-cat-name" class="input-field" placeholder="Category Name" required>
+                    <input type="text" id="new-cat-img" class="input-field" placeholder="Background Image URL" required>
+                    <button type="submit" class="btn-primary" style="background: #000; color:#fff;">➕ Add</button>
+                </form>
+                <div id="admin-category-list" style="margin-top: 1rem;"></div>
+            </div>
+
+            <div class="admin-panel-card">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Inbox: Orders & Requests</h3>
+                <div id="admin-orders-list"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <h2>Magic Loom Creations</h2>
+        <p style="font-weight: 700; text-transform: uppercase;">Crafted with precision in Oswaldtwistle (BB5).</p>
+        <p style="margin-top: 2rem; font-size: 0.8rem; font-weight: 800;">&copy; 2026 ALL RIGHTS RESERVED.</p>
+    </footer>
+
+    <script>
+        // ==========================================
+        // SUPABASE & FORMSPREE INTEGRATION (FIXED)
+        // ==========================================
+        let _supabase = null;
+        try {
+            const supabaseModule = window.supabase || {};
+            if (supabaseModule.createClient) {
+                _supabase = supabaseModule.createClient(
+                    'https://kpdjcitdvhdgbtsbirkd.supabase.co',
+                    'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma'
+                );
+            }
+        } catch (err) {
+            console.error("Supabase init failed:", err);
+        }
+
+        const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
+
+        // Default Data
+        const defaultCategories = [
+            { id: 1, name: "Bracelets", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=600&q=80" },
+            { id: 2, name: "3D Prints", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&q=80" },
+            { id: 3, name: "Kits & DIY", image: "https://images.unsplash.com/photo-1606041011872-596590462582?w=600&q=80" },
+            { id: 4, name: "Bundles", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=600&q=80" }
+        ];
+
+        const defaultProducts = [
+            { id: 1, category: "Bracelets", name: "Rainbow Burst Bracelet", price: 3.50, stock: 15, badge: "BEST SELLER", description: "Vibrant custom starburst pattern handmade with premium, durable bands. Perfect for everyday wear, completely waterproof and stretches to fit most wrists.", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=800&q=80", colors: [{name: 'Neon Mix', hex: '#ff007f'}, {name: 'Ocean Vibe', hex: '#0ea5e9'}] },
+            { id: 2, category: "Bracelets", name: "Classic Fishtail Band", price: 2.00, stock: 50, badge: "CLASSIC", description: "The iconic loom band bracelet tailored perfectly to your wrist size. A tight, clean weave that never goes out of style.", image: "https://images.unsplash.com/photo-1596767817457-36e78dbf8c47?w=800&q=80", colors: [{name: 'Classic Black', hex: '#000000'}, {name: 'Cherry Red', hex: '#ef4444'}] },
+            { id: 3, category: "Bracelets", name: "Dragon Scale Cuff", price: 4.50, stock: 8, badge: "PREMIUM", description: "A wider, intricate weave design utilizing hundreds of bands. Provides a stunning armor-like cuff appearance.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Midnight', hex: '#1e1b4b'}, {name: 'Ruby', hex: '#9f1239'}] },
+            { id: 4, category: "Kits & DIY", name: "Mega Loom Refill Kit", price: 15.00, stock: 2, badge: "SAVE 20%", description: "Need to make your own? Get 5,000 premium quality, latex-free bands in assorted colors. Includes clips and basic hook tool.", image: "https://images.unsplash.com/photo-1606041011872-596590462582?w=800&q=80", colors: [{name: 'Mixed Assortment', hex: '#a855f7'}] },
+            { id: 5, category: "3D Prints", name: "3D Printed Mascot", price: 6.00, stock: 0, badge: "SOLD OUT", description: "Fully articulated 3D printed companion figure for your setup. Precision printed with tough PLA filament.", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80", colors: [{name: 'Matte Black', hex: '#27272a'}] },
+            { id: 6, category: "Bundles", name: "Starter Loom Kit Bundle", price: 10.00, stock: 5, badge: "BUNDLE", description: "Everything you need to start looming. 3 standard bands and a mini hook kit.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Starter Mix', hex: '#eab308'}] }
+        ];
+
+        let categories = [];
+        let products = [];
+        let cart = JSON.parse(localStorage.getItem('loom_cart_v2')) || [];
+        let user = JSON.parse(localStorage.getItem('loom_user_v2')) || null;
+        
+        let activeProduct = null;
+        let activeColor = null;
+        let activeDiscount = 0;
+        let appliedPromoCode = null;
+        const validPromoCodes = { 'WELCOME15': 0.15, 'MEGALOOM': 0.20 };
+        let currentFilter = 'All';
+
+        // --- Cloud Database Fetch & Auto-Seeding ---
+        async function loadCloudData() {
+            if (!_supabase) {
+                products = defaultProducts;
+                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+                return;
+            }
+            try {
+                const { data, error } = await _supabase.from('products').select('*');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    products = data;
+                } else {
+                    // Auto-seed default products into Supabase so it's global immediately!
+                    for (let prod of defaultProducts) {
+                        await _supabase.from('products').insert([{
+                            category: prod.category,
+                            name: prod.name,
+                            price: prod.price,
+                            stock: prod.stock,
+                            image: prod.image,
+                            description: prod.description,
+                            badge: prod.badge,
+                            colors: prod.colors
+                        }]);
+                    }
+                    const { data: freshData } = await _supabase.from('products').select('*');
+                    products = freshData && freshData.length > 0 ? freshData : defaultProducts;
+                }
+            } catch(e) {
+                console.warn("Supabase fetch notice (Did you run the SQL table setup script?):", e.message);
+                products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
+            }
+            categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+        }
+
+        // --- Address Autocomplete Logic ---
+        function setupAddressAutocomplete(inputId, listId, callback) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            let timeout = null;
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(timeout);
+                const val = e.target.value.trim();
+                if (val.length < 4) { list.style.display = 'none'; return; }
+                
+                list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">Searching...</li>';
+                list.style.display = 'block';
+
+                timeout = setTimeout(() => {
+                    fetch(`https://nominatim.openstreetmap.org/search?countrycodes=gb&format=json&addressdetails=1&q=${encodeURIComponent(val)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        list.innerHTML = '';
+                        if(data.length > 0) {
+                            data.slice(0, 5).forEach(item => {
+                                let li = document.createElement('li');
+                                li.innerText = item.display_name;
+                                li.onclick = () => {
+                                    input.value = item.display_name;
+                                    list.style.display = 'none';
+                                    if (callback) callback();
+                                };
+                                list.appendChild(li);
+                            });
+                        } else {
+                            list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">No results found. Type manually.</li>';
+                        }
+                    }).catch(() => {
+                        list.style.display = 'none';
+                    });
+                }, 800); 
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (e.target !== input && e.target !== list) list.style.display = 'none';
+            });
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCloudData();
+            renderHomePage();
+            renderCatalog();
+            updateUIState();
+            updateCartCount();
+
+            setupAddressAutocomplete('checkout-address', 'checkout-address-list', calculateCheckoutModalTotals);
+            setupAddressAutocomplete('custom-address', 'custom-address-list', null);
+            populateAdminCategories();
+        });
+
+        // --- Navigation ---
+        function switchPage(pageId) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+
+            const targetSection = document.getElementById(`page-${pageId}`);
+            if(targetSection) targetSection.classList.add('active');
+            
+            const navLink = document.getElementById(`nav-${pageId}`);
+            if (navLink) navLink.classList.add('active');
+
+            document.getElementById('hero-banner').style.display = pageId === 'home' ? 'flex' : 'none';
+
+            if (pageId === 'basket') renderBasket();
+            if (pageId === 'admin') loadAdminInbox();
+            if (pageId === 'items') renderCatalog();
+        }
+
+        // --- Product Rendering ---
+        function renderHomePage() {
+            const catGrid = document.getElementById('category-grid');
+            catGrid.innerHTML = '';
+            categories.filter(c => c.name !== 'Bundles').forEach(c => {
+                catGrid.innerHTML += `
+                    <div class="category-card" onclick="filterCatalog('${c.name}')">
+                        <img src="${c.image}" alt="${c.name}">
+                        <h3>${c.name}</h3>
+                    </div>
+                `;
+            });
+
+            const bundleGrid = document.getElementById('bundle-grid');
+            bundleGrid.innerHTML = '';
+            let bundles = products.filter(p => p.category && p.category.toLowerCase() === 'bundles');
+            bundles.forEach(b => bundleGrid.innerHTML += createProductCardHTML(b));
+
+            const featuredGrid = document.getElementById('featured-grid');
+            featuredGrid.innerHTML = '';
+            products.slice(0, 3).forEach(p => featuredGrid.innerHTML += createProductCardHTML(p));
+        }
+
+        function createProductCardHTML(prod) {
+            let stockText = prod.stock > 0 ? `IN STOCK: ${prod.stock}` : `OUT OF STOCK`;
+            let stockColor = prod.stock > 0 ? `var(--text-muted)` : `var(--danger)`;
+            let badge = prod.stock <= 0 ? "SOLD OUT" : (prod.badge || "NEW");
+
+            return `
+                <div class="product-card" onclick="openProductPage(${prod.id})">
+                    <span class="discount-tag">${badge}</span>
+                    <div class="img-wrap"><img src="${prod.image}" alt="${prod.name}"></div>
+                    <div class="product-info">
+                        <h3 class="product-title">${prod.name}</h3>
+                        <div class="product-price">£${Number(prod.price).toFixed(2)}</div>
+                        <div class="product-stock" style="color: ${stockColor};">${stockText}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById('catalog-container');
+            container.innerHTML = '';
+            let searchTerm = document.getElementById('shop-search').value.toLowerCase();
+
+            categories.forEach(cat => {
+                if (currentFilter !== 'All' && currentFilter !== cat.name) return;
+
+                let catItems = products.filter(p => p.category === cat.name && p.name.toLowerCase().includes(searchTerm));
+                
+                if (catItems.length > 0) {
+                    container.innerHTML += `<h3 class="category-heading">${cat.name}</h3>`;
+                    let grid = document.createElement('div');
+                    grid.className = 'product-grid';
+                    catItems.forEach(prod => grid.innerHTML += createProductCardHTML(prod));
+                    container.appendChild(grid);
+                }
+            });
+        }
+
+        function filterCatalog(categoryName) {
+            currentFilter = categoryName;
+            document.getElementById('shop-search').value = "";
+            switchPage('items');
+        }
+
+        function openProductPage(id) {
+            activeProduct = products.find(p => p.id === id);
+            if(!activeProduct) return;
+            activeColor = (activeProduct.colors && activeProduct.colors[0]) ? activeProduct.colors[0] : {name: "Standard", hex: "#000"};
+
+            document.getElementById('detail-img').src = activeProduct.image;
+            document.getElementById('detail-title').innerText = activeProduct.name;
+            document.getElementById('detail-badge').innerText = activeProduct.stock <= 0 ? "SOLD OUT" : (activeProduct.badge || "NEW");
+            
+            const stockStatus = document.getElementById('detail-stock-status');
+            const addBtn = document.getElementById('detail-add-btn');
+            
+            if (activeProduct.stock > 0) {
+                stockStatus.innerText = `In Stock: ${activeProduct.stock}`;
+                stockStatus.className = 'stock-status';
+                addBtn.disabled = false; addBtn.innerText = "Add To Cart";
+            } else {
+                stockStatus.innerText = "OUT OF STOCK";
+                stockStatus.className = 'stock-status out';
+                addBtn.disabled = true; addBtn.innerText = "Unavailable";
+            }
+
+            document.getElementById('detail-price').innerText = `£${Number(activeProduct.price).toFixed(2)}`;
+            document.getElementById('detail-desc').innerText = activeProduct.description;
+            document.getElementById('detail-qty').value = 1;
+
+            const swatches = document.getElementById('detail-swatches');
+            swatches.innerHTML = '';
+            if (activeProduct.colors) {
+                activeProduct.colors.forEach((color, idx) => {
+                    const div = document.createElement('div');
+                    div.className = `swatch ${idx === 0 ? 'selected' : ''}`;
+                    div.style.backgroundColor = color.hex;
+                    div.title = color.name;
+                    div.onclick = (e) => selectColor(color, e.target);
+                    swatches.appendChild(div);
+                });
+            }
+
+            document.getElementById('admin-btn').style.display = (user && user.email === 'LeonardoNaracc1@outlook.com') ? 'block' : 'none';
+            switchPage('product');
+        }
+
+        function selectColor(colorObj, element) {
+            activeColor = colorObj;
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function updateQty(change) {
+            if(activeProduct.stock <= 0) return;
+            const input = document.getElementById('detail-qty');
+            let val = parseInt(input.value) + change;
+            if (val < 1) val = 1;
+            if (val > activeProduct.stock) val = activeProduct.stock;
+            input.value = val;
+        }
+
+        // --- Cart Logic ---
+        function addToCartFromDetail() {
+            if (activeProduct.stock <= 0) return;
+            const qty = parseInt(document.getElementById('detail-qty').value);
+            const existingItem = cart.find(i => i.id === activeProduct.id && i.color.name === activeColor.name);
+
+            if (existingItem && (existingItem.qty + qty > activeProduct.stock)) {
+                return alert(`Cannot add more. You have ${existingItem.qty} in cart, only ${activeProduct.stock} total in stock.`);
+            }
+
+            if (existingItem) existingItem.qty += qty;
+            else cart.push({ id: activeProduct.id, name: activeProduct.name, price: activeProduct.price, image: activeProduct.image, color: activeColor, qty: qty });
+
+            localStorage.setItem('loom_cart_v2', JSON.stringify(cart));
+            updateCartCount();
+            
+            const btn = document.getElementById('detail-add-btn');
+            btn.innerHTML = "✓ ADDED TO CART"; btn.style.background = "var(--success)"; btn.style.color = "#fff";
+            setTimeout(() => { btn.innerHTML = "Add To Cart"; btn.style.background = "var(--dark-surface)"; }, 1500);
+        }
+
+        function removeFromCart(index) { 
+            cart.splice(index, 1); 
+            localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); 
+            updateCartCount(); 
+            renderBasket(); 
+        }
+        
+        function updateCartCount() { document.getElementById('cart-count').innerText = cart.reduce((s, i) => s + i.qty, 0); }
+
+        function renderBasket() {
+            const container = document.getElementById('basket-items-container');
+            container.innerHTML = '';
+            if (cart.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 4rem 0; border: 2px solid var(--border-dark); background: var(--bg-main); box-shadow: 8px 8px 0px rgba(0,0,0,1);">
+                    <h2 style="font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Cart is Empty</h2>
+                    <button class="btn-primary" onclick="switchPage('items')">Start Shopping</button>
+                </div>`;
+            } else {
+                cart.forEach((item, index) => {
+                    container.innerHTML += `
+                        <div class="basket-item">
+                            <img src="${item.image}">
+                            <div class="basket-item-info">
+                                <h3 style="text-transform: uppercase; font-size: 1.25rem; font-weight: 900; margin-bottom: 0.2rem; letter-spacing:-0.5px;">${item.name}</h3>
+                                <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 800; margin-bottom: 0.5rem; text-transform: uppercase;">Color: ${item.color.name} | Qty: ${item.qty}</p>
+                                <div style="font-weight: 900; color: var(--text-main); font-size: 1.1rem;">£${(item.price * item.qty).toFixed(2)}</div>
+                            </div>
+                            <button onclick="removeFromCart(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900; text-transform: uppercase;">Remove</button>
+                        </div>`;
+                });
+            }
+            calculateTotals();
+        }
+
+        function applyPromo() {
+            const input = document.getElementById('basket-promo').value.toUpperCase().trim();
+            const msg = document.getElementById('promo-msg');
+            let usedCodes = user ? (user.usedCodes || []) : (JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []);
+
+            if (usedCodes.includes(input)) {
+                msg.innerText = "Code already used."; msg.style.color = "var(--danger)"; activeDiscount = 0; appliedPromoCode = null;
+            } else if (validPromoCodes[input]) {
+                activeDiscount = validPromoCodes[input]; appliedPromoCode = input;
+                msg.innerText = `✓ ${(activeDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
+            } else {
+                activeDiscount = 0; appliedPromoCode = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
+            }
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let discountAmt = subtotal * activeDiscount;
+            let total = Math.max(0, subtotal - discountAmt); 
+            
+            document.getElementById('summary-subtotal').innerText = `£${subtotal.toFixed(2)}`;
+            document.getElementById('summary-discount').innerText = `-£${discountAmt.toFixed(2)}`;
+            document.getElementById('summary-total').innerText = `£${total.toFixed(2)}`;
+        }
+
+        function calculateCheckoutModalTotals() {
+            const address = document.getElementById('checkout-address').value.toUpperCase();
+            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let discountAmt = subtotal * activeDiscount;
+            
+            let delivery = 5.00;
+            if (address.includes('BB5')) delivery = 0.00;
+
+            let total = Math.max(0, (subtotal - discountAmt) + delivery);
+            const btnSpan = document.querySelector('#checkout-submit-btn span');
+            btnSpan.innerText = `Place Order (£${total.toFixed(2)})`;
+        }
+
+        // --- Checkout Flow ---
+        function initiateCheckout() {
+            if (cart.length === 0) return alert("Your cart is empty.");
+            for (let item of cart) {
+                let p = products.find(prod => prod.id === item.id);
+                if (p && p.stock < item.qty) return alert(`Only ${p.stock} of ${p.name} left in stock. Please adjust cart.`);
+            }
+            
+            document.getElementById('checkout-error').innerText = "";
+            document.getElementById('checkout-modal').style.display = 'flex';
+            calculateCheckoutModalTotals();
+        }
+
+        function closeCheckoutModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+        function closeSuccessModal() { document.getElementById('success-modal').style.display = 'none'; }
+
+        async function submitRealOrder(e) {
+            e.preventDefault();
+            const btn = document.getElementById('checkout-submit-btn');
+            const spinner = document.getElementById('checkout-spinner');
+            const errorBox = document.getElementById('checkout-error');
+            
+            btn.querySelector('span').style.display = 'none'; 
+            spinner.style.display = 'block';
+            errorBox.innerText = "";
+
+            let orderDetails = cart.map(item => `${item.qty}x ${item.name} (${item.color.name}) - £${(item.price * item.qty).toFixed(2)}`).join('\n');
+            
+            const address = document.getElementById('checkout-address').value;
+            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let discountAmt = subtotal * activeDiscount;
+            let delivery = address.toUpperCase().includes('BB5') ? 0 : 5.00;
+            let total = `£${Math.max(0, (subtotal - discountAmt) + delivery).toFixed(2)}`;
+            let discountStr = `£${discountAmt.toFixed(2)}`;
+
+            let customerName = document.getElementById('checkout-name').value;
+            let customerEmail = document.getElementById('checkout-email').value;
+            
+            let messageBody = `NEW ORDER RECEIVED!\n\nName: ${customerName}\nEmail: ${customerEmail}\nAddress: ${address}\n\nSummary:\n${orderDetails}\n\nDiscount: -${discountStr}\nDelivery: £${delivery.toFixed(2)}\nTotal: ${total}\n\n(Reply to ${customerEmail} to send the secure payment link!)`;
+
+            const orderData = { 
+                id: Date.now(), 
+                date: new Date().toLocaleString(), 
+                name: customerName, 
+                email: customerEmail, 
+                address: address, 
+                items: orderDetails, 
+                total: total,
+                type: 'checkout'
+            };
+
+            try {
+                if (_supabase) {
+                    const { error: dbError } = await _supabase.from('orders').insert([orderData]);
+                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
+                }
+
+                const formRes = await fetch(formspreeEndpoint, {
+                    method: "POST", 
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ 
+                        name: customerName, 
+                        email: customerEmail, 
+                        message: messageBody, 
+                        _subject: `NEW ORDER: ${total} from ${customerName}` 
+                    })
+                });
+
+                if (!formRes.ok) throw new Error("Email notification failed to send via Formspree.");
+
+                if (_supabase) {
+                    for (let item of cart) {
+                        let p = products.find(prod => prod.id === item.id);
+                        if(p) {
+                            p.stock -= item.qty;
+                            await _supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
+                        }
+                    }
+                }
+
+                if (appliedPromoCode) {
+                    if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(appliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
+                    else { let gc = JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []; gc.push(appliedPromoCode); localStorage.setItem('loom_guest_codes_v2', JSON.stringify(gc)); }
+                }
+
+                cart = []; 
+                localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount();
+                activeDiscount = 0; appliedPromoCode = null;
+                document.getElementById('basket-promo').value = ""; applyPromo();
+                e.target.reset();
+                
+                closeCheckoutModal();
+                renderHomePage(); renderCatalog();
+                switchPage('home');
+                document.getElementById('success-modal').style.display = 'flex';
+                
+            } catch (err) {
+                errorBox.innerText = "Order failed: " + (err.message || "Unknown error occurred.");
+                console.error(err);
+            }
+
+            btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
+        }
+
+        // --- Custom Orders ---
+        async function submitCustomOrder(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn'); const spinner = document.getElementById('form-spinner'); const feedback = document.getElementById('form-feedback');
+            btn.querySelector('span').style.display = 'none'; spinner.style.display = 'block'; feedback.innerText = "";
+            
+            const name = e.target.name.value; const email = e.target.email.value; const msg = e.target.message.value;
+            const address = e.target.address.value;
+
+            let fullMessage = `CUSTOM ORDER REQUEST\n\nName: ${name}\nEmail: ${email}\nShipping Address: ${address}\n\nVision/Details:\n${msg}`;
+
+            const requestData = { 
+                id: Date.now(), 
+                date: new Date().toLocaleString(), 
+                name: name, 
+                email: email, 
+                address: address, 
+                message: msg,
+                type: 'custom_request'
+            };
+
+            try {
+                if (_supabase) {
+                    const { error: dbError } = await _supabase.from('orders').insert([requestData]);
+                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
+                }
+
+                const formRes = await fetch(formspreeEndpoint, {
+                    method: "POST", 
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ 
+                        name, 
+                        email, 
+                        message: fullMessage, 
+                        _subject: "New Custom Loom Order Request" 
+                    })
+                });
+
+                if (!formRes.ok) throw new Error("Email failed to send via Formspree.");
+
+                feedback.innerText = "✓ Request Sent Successfully! We will email you shortly."; feedback.style.color = "var(--success)";
+                e.target.reset();
+            } catch (err) {
+                feedback.innerText = "⚠️ Error sending: " + (err.message || "Unknown error."); feedback.style.color = "var(--danger)";
+                console.error(err);
+            }
+
+            spinner.style.display = 'none'; btn.querySelector('span').style.display = 'block';
+        }
+
+        // --- Account System & Admin Panel ---
+        function updateUIState() {
+            const accBtn = document.getElementById('account-btn-text');
+            if (user && user.email) {
+                accBtn.innerText = user.email.split('@')[0].toUpperCase();
+            } else {
+                accBtn.innerText = "SIGN IN";
+            }
+        }
+
+        function openAccountModal() {
+            document.getElementById('account-modal').style.display = 'flex';
+            if (user) {
+                document.getElementById('modal-login-view').style.display = 'none';
+                document.getElementById('modal-profile-view').style.display = 'block';
+                document.getElementById('profile-email').innerText = user.email;
+                document.getElementById('profile-admin-btn').style.display = (user.email === 'LeonardoNaracc1@outlook.com') ? 'block' : 'none';
+            } else {
+                document.getElementById('modal-login-view').style.display = 'block';
+                document.getElementById('modal-profile-view').style.display = 'none';
+            }
+        }
+        function closeAccountModal() { document.getElementById('account-modal').style.display = 'none'; }
+        
+        function processLogin() {
+            const email = document.getElementById('login-email').value;
+            if(!email) return;
+            let existingUser = JSON.parse(localStorage.getItem('loom_user_v2'));
+            user = (existingUser && existingUser.email === email) ? existingUser : { email, usedCodes: [] };
+            localStorage.setItem('loom_user_v2', JSON.stringify(user));
+            updateUIState(); closeAccountModal();
+            if (activeProduct && document.getElementById('page-product').classList.contains('active')) openProductPage(activeProduct.id);
+        }
+        function processLogout() {
+            user = null; localStorage.removeItem('loom_user_v2'); updateUIState(); closeAccountModal();
+            if(document.getElementById('page-admin').classList.contains('active')) switchPage('home');
+            if(document.getElementById('page-product').classList.contains('active')) openProductPage(activeProduct.id);
+        }
+
+        function populateAdminCategories() {
+            const select = document.getElementById('add-category');
+            const adminSelect = document.getElementById('admin-category');
+            if(!select || !adminSelect) return;
+            
+            let options = '';
+            categories.forEach(c => options += `<option value="${c.name}">${c.name}</option>`);
+            select.innerHTML = options;
+            adminSelect.innerHTML = options;
+        }
+
+        function openAdminDashboard() { closeAccountModal(); switchPage('admin'); }
+
+        async function loadAdminInbox() {
+            populateAdminCategories();
+
+            const catListContainer = document.getElementById('admin-category-list');
+            catListContainer.innerHTML = '';
+            categories.forEach((c, index) => {
+                catListContainer.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid var(--border-light); font-weight:700;">
+                        <span>${c.name}</span>
+                        <button onclick="deleteCategory(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900;">✕ Delete</button>
+                    </div>`;
+            });
+
+            const ordContainer = document.getElementById('admin-orders-list');
+            const errBox = document.getElementById('admin-error-box');
+            ordContainer.innerHTML = '<p>Loading inbox...</p>';
+            errBox.style.display = 'none';
+
+            try {
+                if (!_supabase) throw new Error("Supabase client not initialized.");
+                const { data, error } = await _supabase.from('orders').select('*').order('id', { ascending: false });
+                if (error) throw error;
+                
+                let checkouts = data.filter(o => o.type === 'checkout' || o.items);
+                let customReqs = data.filter(o => o.type === 'custom_request' || (!o.items && o.message));
+
+                ordContainer.innerHTML = checkouts.length ? '' : '<p>No orders yet.</p>';
+                checkouts.forEach((o) => {
+                    ordContainer.innerHTML += `
+                        <div class="admin-list-item">
+                            <button class="delete-btn" onclick="deleteInboxOrder(${o.id})">✕ Delete</button>
+                            <strong style="color:var(--accent-blue);">${o.date || ''}</strong> | <strong>${o.name}</strong> (${o.email})<br>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">${o.address || ''}</span><br><br>
+                            <pre style="font-family:inherit; font-size:0.9rem; font-weight:700;">${o.items}</pre><br>
+                            <strong style="font-size:1.2rem;">Total: ${o.total}</strong>
+                        </div>`;
+                });
+
+                if (customReqs.length > 0) {
+                    ordContainer.innerHTML += '<h4 style="margin-top:2rem; font-weight:900; text-transform:uppercase;">Custom Requests</h4>';
+                    customReqs.forEach((r) => {
+                        ordContainer.innerHTML += `
+                            <div class="admin-list-item">
+                                <button class="delete-btn" onclick="deleteInboxOrder(${r.id})">✕ Delete</button>
+                                <strong style="color:var(--accent-blue);">${r.date || ''}</strong> | <strong>${r.name}</strong> (${r.email})<br>
+                                <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
+                                <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
+                            </div>`;
+                    });
+                }
+
+            } catch (e) {
+                ordContainer.innerHTML = '';
+                errBox.style.display = 'block';
+                errBox.innerText = "Admin Database Error: " + e.message + " (Make sure you ran the SQL query in Supabase!)";
+            }
+        }
+
+        async function deleteInboxOrder(id) {
+            if(confirm("Permanently delete this from the database?")) {
+                try {
+                    const { error } = await _supabase.from('orders').delete().eq('id', id);
+                    if(error) throw error;
+                    loadAdminInbox();
+                } catch(e) {
+                    alert("Error deleting: " + e.message);
+                }
+            }
+        }
+
+        function adminAddCategory(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-cat-name').value;
+            const img = document.getElementById('new-cat-img').value;
+            categories.push({id: Date.now(), name: name, image: img});
+            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+            e.target.reset();
+            loadAdminInbox(); renderHomePage(); renderCatalog();
+        }
+
+        function deleteCategory(index) {
+            if(confirm("Delete this category?")) {
+                categories.splice(index, 1);
+                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+                loadAdminInbox(); renderHomePage(); renderCatalog();
+            }
+        }
+
+        async function adminAddNewProduct(e) {
+            e.preventDefault();
+            const name = document.getElementById('add-name').value;
+            const category = document.getElementById('add-category').value;
+            const price = parseFloat(document.getElementById('add-price').value);
+            const stock = parseInt(document.getElementById('add-stock').value);
+            const image = document.getElementById('add-image').value;
+            const desc = document.getElementById('add-desc').value;
+            const colorsStr = document.getElementById('add-colors').value;
+
+            let colors = [];
+            colorsStr.split(',').forEach(pair => {
+                let p = pair.split('|');
+                if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
+            });
+            if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
+
+            let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
+
+            const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
+            
+            try {
+                const { error } = await _supabase.from('products').insert([newProd]);
+                if (error) throw error;
+
+                products.push(newProd);
+                alert("Successfully added to the cloud store!");
+                e.target.reset();
+                renderHomePage(); renderCatalog();
+            } catch(err) {
+                alert("Error adding product to cloud database: " + err.message + " (Did you run the SQL script in Supabase?)");
             }
         }
 
