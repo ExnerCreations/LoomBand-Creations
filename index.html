@@ -158,7 +158,6 @@
         .form-group { margin-bottom: 1.5rem; position: relative; }
         .form-group label { display: block; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem; }
 
-        /* Modified autocomplete list to sit within flow to prevent clipping */
         .autocomplete-list { 
             display: none; width: 100%; max-height: 200px; overflow-y: auto; 
             background: var(--bg-main); border: 2px solid var(--border-dark); border-top: none; 
@@ -475,7 +474,7 @@
             <div class="section-header">Control Panel</div>
             
             <div class="admin-panel-card">
-                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Add New Product</h3>
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Add New Product / Bundle</h3>
                 <form onsubmit="adminAddNewProduct(event)">
                     <div style="display:flex; gap:1rem; margin-bottom:1rem;">
                         <input type="text" id="add-name" class="input-field" placeholder="Product Name" required style="flex:2;">
@@ -519,7 +518,17 @@
     </footer>
 
     <script>
-        // --- Database & State Setup ---
+        // ==========================================
+        // CLOUD DATABASE SETUP (Firebase Realtime DB)
+        // ==========================================
+        // To make your products live for everyone:
+        // 1. Go to firebase.google.com and create a free project.
+        // 2. Create a "Realtime Database" (Test Mode / rules set to ".read": true, ".write": true).
+        // 3. Paste your Database URL below (keep the quotes, remove the trailing slash).
+        const FIREBASE_DB_URL = "YOUR_FIREBASE_DATABASE_URL_HERE"; 
+        // Example: "https://my-loom-store-default-rtdb.firebaseio.com"
+
+        // Default local fallbacks
         const defaultCategories = [
             { id: 1, name: "Bracelets", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=600&q=80" },
             { id: 2, name: "3D Prints", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&q=80" },
@@ -536,8 +545,8 @@
             { id: 6, category: "Bundles", name: "Starter Loom Kit Bundle", price: 10.00, stock: 5, badge: "BUNDLE", description: "Everything you need to start looming. 3 standard bands and a mini hook kit.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Starter Mix', hex: '#eab308'}] }
         ];
 
-        let categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
-        let products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
+        let categories = [];
+        let products = [];
         let cart = JSON.parse(localStorage.getItem('loom_cart_v2')) || [];
         let user = JSON.parse(localStorage.getItem('loom_user_v2')) || null;
         
@@ -547,6 +556,43 @@
         let appliedPromoCode = null;
         const validPromoCodes = { 'WELCOME15': 0.15, 'MEGALOOM': 0.20 };
         let currentFilter = 'All';
+
+        // --- Cloud Database Fetch/Save ---
+        async function loadCloudData() {
+            if (!FIREBASE_DB_URL || FIREBASE_DB_URL === "YOUR_FIREBASE_DATABASE_URL_HERE") {
+                products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
+                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+                return;
+            }
+            try {
+                let res = await fetch(`${FIREBASE_DB_URL}/storeData.json`);
+                let data = await res.json();
+                if (data && data.products) {
+                    products = data.products;
+                    categories = data.categories || defaultCategories;
+                } else {
+                    products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
+                    categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+                }
+            } catch(e) {
+                console.warn("Cloud load failed, falling back to local storage", e);
+                products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
+                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+            }
+        }
+
+        function saveCloudData() {
+            localStorage.setItem('loom_products_v2', JSON.stringify(products));
+            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+
+            if (FIREBASE_DB_URL && FIREBASE_DB_URL !== "YOUR_FIREBASE_DATABASE_URL_HERE") {
+                fetch(`${FIREBASE_DB_URL}/storeData.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ products, categories })
+                }).catch(e => console.error("Cloud save failed", e));
+            }
+        }
 
         // --- Address Autocomplete Logic (Robust) ---
         function setupAddressAutocomplete(inputId, listId, callback) {
@@ -593,7 +639,8 @@
         }
 
         // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCloudData();
             renderHomePage();
             renderCatalog();
             updateUIState();
@@ -759,14 +806,21 @@
             if (existingItem) existingItem.qty += qty;
             else cart.push({ id: activeProduct.id, name: activeProduct.name, price: activeProduct.price, image: activeProduct.image, color: activeColor, qty: qty });
 
-            saveCart();
+            localStorage.setItem('loom_cart_v2', JSON.stringify(cart));
+            updateCartCount();
+            
             const btn = document.getElementById('detail-add-btn');
             btn.innerHTML = "✓ ADDED TO CART"; btn.style.background = "var(--success)"; btn.style.color = "#fff";
             setTimeout(() => { btn.innerHTML = "Add To Cart"; btn.style.background = "var(--dark-surface)"; }, 1500);
         }
 
-        function removeFromCart(index) { cart.splice(index, 1); saveCart(); renderBasket(); }
-        function saveCart() { localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount(); }
+        function removeFromCart(index) { 
+            cart.splice(index, 1); 
+            localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); 
+            updateCartCount(); 
+            renderBasket(); 
+        }
+        
         function updateCartCount() { document.getElementById('cart-count').innerText = cart.reduce((s, i) => s + i.qty, 0); }
 
         function renderBasket() {
@@ -879,14 +933,16 @@
                 localStorage.setItem('loom_inbox_orders', JSON.stringify(orders));
 
                 cart.forEach(item => { let p = products.find(prod => prod.id === item.id); p.stock -= item.qty; });
-                localStorage.setItem('loom_products_v2', JSON.stringify(products));
+                saveCloudData();
 
                 if (appliedPromoCode) {
                     if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(appliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
                     else { let gc = JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []; gc.push(appliedPromoCode); localStorage.setItem('loom_guest_codes_v2', JSON.stringify(gc)); }
                 }
 
-                cart = []; saveCart(); activeDiscount = 0; appliedPromoCode = null;
+                cart = []; 
+                localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount();
+                activeDiscount = 0; appliedPromoCode = null;
                 document.getElementById('basket-promo').value = ""; applyPromo();
                 e.target.reset();
                 
@@ -1050,7 +1106,7 @@
             const name = document.getElementById('new-cat-name').value;
             const img = document.getElementById('new-cat-img').value;
             categories.push({id: Date.now(), name: name, image: img});
-            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+            saveCloudData();
             e.target.reset();
             loadAdminInbox(); renderHomePage(); renderCatalog();
         }
@@ -1058,7 +1114,7 @@
         function deleteCategory(index) {
             if(confirm("Delete this category?")) {
                 categories.splice(index, 1);
-                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+                saveCloudData();
                 loadAdminInbox(); renderHomePage(); renderCatalog();
             }
         }
@@ -1084,7 +1140,7 @@
 
             const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
             products.push(newProd);
-            localStorage.setItem('loom_products_v2', JSON.stringify(products));
+            saveCloudData();
             
             alert("Successfully added to the store!");
             e.target.reset();
@@ -1124,7 +1180,8 @@
 
             let idx = products.findIndex(p => p.id === activeProduct.id);
             if (idx !== -1) products[idx] = activeProduct;
-            localStorage.setItem('loom_products_v2', JSON.stringify(products));
+            
+            saveCloudData();
             
             closeAdminModal(); renderHomePage(); renderCatalog(); openProductPage(activeProduct.id);
         }
@@ -1133,7 +1190,7 @@
             if(!activeProduct) return;
             if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
                 products = products.filter(p => p.id !== activeProduct.id);
-                localStorage.setItem('loom_products_v2', JSON.stringify(products));
+                saveCloudData();
                 closeAdminModal();
                 switchPage('items');
                 renderHomePage();
