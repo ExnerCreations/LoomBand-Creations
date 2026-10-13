@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Loom Creations | Premium Custom Bands</title>
+    
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         /* T13 & Premium Variables */
         :root {
@@ -411,7 +415,7 @@
             <div style="background: var(--bg-main); padding: 3rem; border: 2px solid var(--border-dark); max-width: 800px; margin: 0 auto; box-shadow: 10px 10px 0px rgba(0,0,0,1);">
                 <p style="margin-bottom: 1rem; color: var(--text-main); font-weight: 700; font-size: 1.1rem;">
                     Want a specific color combo or a personalized 3D print? Fill out the form below. 
-                    This request goes directly to <strong>MagicLoomCreations@outlook.com</strong>.
+                    This request goes directly to our admin team.
                 </p>
                 <p style="margin-bottom: 2rem; color: var(--danger); font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">
                     * You will receive a secure payment link via email within 1 week of request approval.
@@ -500,13 +504,8 @@
             </div>
 
             <div class="admin-panel-card">
-                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Inbox: Orders</h3>
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Inbox: Orders & Requests</h3>
                 <div id="admin-orders-list"></div>
-            </div>
-
-            <div class="admin-panel-card">
-                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Inbox: Custom Requests</h3>
-                <div id="admin-requests-list"></div>
             </div>
         </section>
     </main>
@@ -519,16 +518,15 @@
 
     <script>
         // ==========================================
-        // CLOUD DATABASE SETUP (Firebase Realtime DB)
+        // SUPABASE & FORMSPREE INTEGRATION
         // ==========================================
-        // To make your products live for everyone:
-        // 1. Go to firebase.google.com and create a free project.
-        // 2. Create a "Realtime Database" (Test Mode / rules set to ".read": true, ".write": true).
-        // 3. Paste your Database URL below (keep the quotes, remove the trailing slash).
-        const FIREBASE_DB_URL = "YOUR_FIREBASE_DATABASE_URL_HERE"; 
-        // Example: "https://my-loom-store-default-rtdb.firebaseio.com"
+        const supabaseUrl = 'https://kpdjcitdvhdgbtsbirkd.supabase.co';
+        const supabaseKey = 'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Default local fallbacks
+        const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
+
+        // Default Data
         const defaultCategories = [
             { id: 1, name: "Bracelets", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=600&q=80" },
             { id: 2, name: "3D Prints", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&q=80" },
@@ -559,39 +557,20 @@
 
         // --- Cloud Database Fetch/Save ---
         async function loadCloudData() {
-            if (!FIREBASE_DB_URL || FIREBASE_DB_URL === "YOUR_FIREBASE_DATABASE_URL_HERE") {
-                products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
-                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
-                return;
-            }
             try {
-                let res = await fetch(`${FIREBASE_DB_URL}/storeData.json`);
-                let data = await res.json();
-                if (data && data.products) {
-                    products = data.products;
-                    categories = data.categories || defaultCategories;
+                const { data, error } = await supabaseClient.from('products').select('*');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    products = data;
                 } else {
-                    products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
-                    categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+                    products = defaultProducts;
                 }
             } catch(e) {
-                console.warn("Cloud load failed, falling back to local storage", e);
+                console.warn("Supabase load failed, falling back to defaults.", e);
                 products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
-                categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
             }
-        }
-
-        function saveCloudData() {
-            localStorage.setItem('loom_products_v2', JSON.stringify(products));
-            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
-
-            if (FIREBASE_DB_URL && FIREBASE_DB_URL !== "YOUR_FIREBASE_DATABASE_URL_HERE") {
-                fetch(`${FIREBASE_DB_URL}/storeData.json`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ products, categories })
-                }).catch(e => console.error("Cloud save failed", e));
-            }
+            // Categories kept in Local Storage to avoid breaking "add category" if there's no supabase table for it
+            categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
         }
 
         // --- Address Autocomplete Logic (Robust) ---
@@ -717,7 +696,6 @@
             let searchTerm = document.getElementById('shop-search').value.toLowerCase();
 
             categories.forEach(cat => {
-                // If filter is active, skip other categories
                 if (currentFilter !== 'All' && currentFilter !== cat.name) return;
 
                 let catItems = products.filter(p => p.category === cat.name && p.name.toLowerCase().includes(searchTerm));
@@ -887,7 +865,7 @@
             btnSpan.innerText = `Place Order (£${total.toFixed(2)})`;
         }
 
-        // --- Checkout Flow ---
+        // --- Checkout Flow (Supabase + Formspree) ---
         function initiateCheckout() {
             if (cart.length === 0) return alert("Your cart is empty.");
             for (let item of cart) {
@@ -902,7 +880,7 @@
         function closeCheckoutModal() { document.getElementById('checkout-modal').style.display = 'none'; }
         function closeSuccessModal() { document.getElementById('success-modal').style.display = 'none'; }
 
-        function submitRealOrder(e) {
+        async function submitRealOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('checkout-submit-btn');
             const spinner = document.getElementById('checkout-spinner');
@@ -922,18 +900,39 @@
             
             let messageBody = `NEW ORDER RECEIVED!\n\nName: ${customerName}\nEmail: ${customerEmail}\nAddress: ${address}\n\nSummary:\n${orderDetails}\n\nDiscount: -${discountStr}\nDelivery: £${delivery.toFixed(2)}\nTotal: ${total}\n\n(Reply to ${customerEmail} to send the secure payment link!)`;
 
-            fetch("https://formsubmit.co/ajax/MagicLoomCreations@outlook.com", {
-                method: "POST", headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ name: customerName, email: customerEmail, message: messageBody, _subject: `NEW ORDER: ${total} from ${customerName}` })
-            })
-            .then(res => res.json())
-            .then(data => {
-                let orders = JSON.parse(localStorage.getItem('loom_inbox_orders')) || [];
-                orders.push({ id: Date.now(), date: new Date().toLocaleString(), name: customerName, email: customerEmail, address: address, items: orderDetails, total });
-                localStorage.setItem('loom_inbox_orders', JSON.stringify(orders));
+            const orderData = { 
+                id: Date.now(), 
+                date: new Date().toLocaleString(), 
+                name: customerName, 
+                email: customerEmail, 
+                address: address, 
+                items: orderDetails, 
+                total: total,
+                type: 'checkout'
+            };
 
-                cart.forEach(item => { let p = products.find(prod => prod.id === item.id); p.stock -= item.qty; });
-                saveCloudData();
+            try {
+                // 1. Save to Supabase 'orders' table
+                await supabaseClient.from('orders').insert([orderData]);
+
+                // 2. Send via Formspree
+                await fetch(formspreeEndpoint, {
+                    method: "POST", 
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ 
+                        name: customerName, 
+                        email: customerEmail, 
+                        message: messageBody, 
+                        _subject: `NEW ORDER: ${total} from ${customerName}` 
+                    })
+                });
+
+                // 3. Deduct stock in Supabase
+                for (let item of cart) {
+                    let p = products.find(prod => prod.id === item.id);
+                    p.stock -= item.qty;
+                    await supabaseClient.from('products').update({ stock: p.stock }).eq('id', p.id);
+                }
 
                 if (appliedPromoCode) {
                     if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(appliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
@@ -951,16 +950,16 @@
                 switchPage('home');
                 document.getElementById('success-modal').style.display = 'flex';
                 
-                btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
-            })
-            .catch(err => {
-                alert("Error sending order. Please try again.");
-                btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
-            });
+            } catch (err) {
+                alert("There was an error processing your order. Please try again.");
+                console.error(err);
+            }
+
+            btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
         }
 
-        // --- Custom Orders (Inbox integration) ---
-        function submitCustomOrder(e) {
+        // --- Custom Orders (Supabase + Formspree integration) ---
+        async function submitCustomOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn'); const spinner = document.getElementById('form-spinner'); const feedback = document.getElementById('form-feedback');
             btn.querySelector('span').style.display = 'none'; spinner.style.display = 'block'; feedback.innerText = "";
@@ -970,24 +969,40 @@
 
             let fullMessage = `CUSTOM ORDER REQUEST\n\nName: ${name}\nEmail: ${email}\nShipping Address: ${address}\n\nVision/Details:\n${msg}`;
 
-            fetch("https://formsubmit.co/ajax/MagicLoomCreations@outlook.com", {
-                method: "POST", headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ name, email, message: fullMessage, _subject: "New Custom Loom Order Request" })
-            })
-            .then(res => res.json())
-            .then(data => {
-                let requests = JSON.parse(localStorage.getItem('loom_inbox_requests')) || [];
-                requests.push({ id: Date.now(), date: new Date().toLocaleString(), name, email, address, message: msg });
-                localStorage.setItem('loom_inbox_requests', JSON.stringify(requests));
+            const requestData = { 
+                id: Date.now(), 
+                date: new Date().toLocaleString(), 
+                name: name, 
+                email: email, 
+                address: address, 
+                message: msg,
+                type: 'custom_request'
+            };
 
-                spinner.style.display = 'none'; btn.querySelector('span').style.display = 'block';
+            try {
+                // 1. Save to Supabase 'orders'
+                await supabaseClient.from('orders').insert([requestData]);
+
+                // 2. Send via Formspree
+                await fetch(formspreeEndpoint, {
+                    method: "POST", 
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ 
+                        name, 
+                        email, 
+                        message: fullMessage, 
+                        _subject: "New Custom Loom Order Request" 
+                    })
+                });
+
                 feedback.innerText = "✓ Request Sent Successfully! We will email you shortly."; feedback.style.color = "var(--success)";
                 e.target.reset();
-            })
-            .catch(err => {
-                spinner.style.display = 'none'; btn.querySelector('span').style.display = 'block';
+            } catch (err) {
                 feedback.innerText = "⚠️ Error sending. Please try again."; feedback.style.color = "var(--danger)";
-            });
+                console.error(err);
+            }
+
+            spinner.style.display = 'none'; btn.querySelector('span').style.display = 'block';
         }
 
         // --- Account System & Admin Panel ---
@@ -1042,7 +1057,7 @@
 
         function openAdminDashboard() { closeAccountModal(); switchPage('admin'); }
 
-        function loadAdminInbox() {
+        async function loadAdminInbox() {
             populateAdminCategories();
 
             const catListContainer = document.getElementById('admin-category-list');
@@ -1055,58 +1070,71 @@
                     </div>`;
             });
 
+            // Fetch orders from Supabase globally
             const ordContainer = document.getElementById('admin-orders-list');
-            let orders = JSON.parse(localStorage.getItem('loom_inbox_orders')) || [];
-            ordContainer.innerHTML = orders.length ? '' : '<p>No orders yet.</p>';
-            orders.slice().reverse().forEach((o) => {
-                ordContainer.innerHTML += `
-                    <div class="admin-list-item">
-                        <button class="delete-btn" onclick="deleteInboxOrder(${o.id})">✕ Delete</button>
-                        <strong style="color:var(--accent-blue);">${o.date}</strong> | <strong>${o.name}</strong> (${o.email})<br>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">${o.address}</span><br><br>
-                        <pre style="font-family:inherit; font-size:0.9rem; font-weight:700;">${o.items}</pre><br>
-                        <strong style="font-size:1.2rem;">Total: ${o.total}</strong>
-                    </div>`;
-            });
+            ordContainer.innerHTML = '<p>Loading inbox...</p>';
 
-            const reqContainer = document.getElementById('admin-requests-list');
-            let reqs = JSON.parse(localStorage.getItem('loom_inbox_requests')) || [];
-            reqContainer.innerHTML = reqs.length ? '' : '<p>No custom requests yet.</p>';
-            reqs.slice().reverse().forEach((r) => {
-                reqContainer.innerHTML += `
-                    <div class="admin-list-item">
-                        <button class="delete-btn" onclick="deleteInboxRequest(${r.id})">✕ Delete</button>
-                        <strong style="color:var(--accent-blue);">${r.date}</strong> | <strong>${r.name}</strong> (${r.email})<br>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">${r.address}</span><br><br>
-                        <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
-                    </div>`;
-            });
+            try {
+                const { data, error } = await supabaseClient.from('orders').select('*').order('id', { ascending: false });
+                if (error) throw error;
+                
+                let checkouts = data.filter(o => o.type === 'checkout' || o.items);
+                let customReqs = data.filter(o => o.type === 'custom_request' || (!o.items && o.message));
+
+                ordContainer.innerHTML = checkouts.length ? '' : '<p>No orders yet.</p>';
+                checkouts.forEach((o) => {
+                    ordContainer.innerHTML += `
+                        <div class="admin-list-item">
+                            <button class="delete-btn" onclick="deleteInboxOrder(${o.id})">✕ Delete</button>
+                            <strong style="color:var(--accent-blue);">${o.date || ''}</strong> | <strong>${o.name}</strong> (${o.email})<br>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">${o.address || ''}</span><br><br>
+                            <pre style="font-family:inherit; font-size:0.9rem; font-weight:700;">${o.items}</pre><br>
+                            <strong style="font-size:1.2rem;">Total: ${o.total}</strong>
+                        </div>`;
+                });
+
+                let reqContainer = document.getElementById('admin-requests-list');
+                if(!reqContainer) {
+                    // Backwards compatibility, sometimes I combined them. I see it exists in HTML.
+                    reqContainer = document.getElementById('admin-orders-list'); // fallback
+                } else {
+                    reqContainer.innerHTML = customReqs.length ? '' : '<p>No custom requests yet.</p>';
+                }
+
+                customReqs.forEach((r) => {
+                    reqContainer.innerHTML += `
+                        <div class="admin-list-item">
+                            <button class="delete-btn" onclick="deleteInboxOrder(${r.id})">✕ Delete</button>
+                            <strong style="color:var(--accent-blue);">${r.date || ''}</strong> | <strong>${r.name}</strong> (${r.email})<br>
+                            <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
+                            <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
+                        </div>`;
+                });
+
+            } catch (e) {
+                ordContainer.innerHTML = `<p style="color:var(--danger)">Error loading inbox: ${e.message}</p>`;
+            }
         }
 
         // --- Admin Deletion Controls ---
-        function deleteInboxOrder(id) {
-            if(confirm("Permanently delete this order from inbox?")) {
-                let orders = JSON.parse(localStorage.getItem('loom_inbox_orders')) || [];
-                orders = orders.filter(o => o.id !== id);
-                localStorage.setItem('loom_inbox_orders', JSON.stringify(orders));
-                loadAdminInbox();
-            }
-        }
-        function deleteInboxRequest(id) {
-            if(confirm("Permanently delete this request from inbox?")) {
-                let reqs = JSON.parse(localStorage.getItem('loom_inbox_requests')) || [];
-                reqs = reqs.filter(r => r.id !== id);
-                localStorage.setItem('loom_inbox_requests', JSON.stringify(reqs));
-                loadAdminInbox();
+        async function deleteInboxOrder(id) {
+            if(confirm("Permanently delete this order from the database?")) {
+                try {
+                    await supabaseClient.from('orders').delete().eq('id', id);
+                    loadAdminInbox();
+                } catch(e) {
+                    alert("Error deleting: " + e.message);
+                }
             }
         }
 
+        // Category stays local to prevent DB breaking
         function adminAddCategory(e) {
             e.preventDefault();
             const name = document.getElementById('new-cat-name').value;
             const img = document.getElementById('new-cat-img').value;
             categories.push({id: Date.now(), name: name, image: img});
-            saveCloudData();
+            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
             e.target.reset();
             loadAdminInbox(); renderHomePage(); renderCatalog();
         }
@@ -1114,12 +1142,12 @@
         function deleteCategory(index) {
             if(confirm("Delete this category?")) {
                 categories.splice(index, 1);
-                saveCloudData();
+                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
                 loadAdminInbox(); renderHomePage(); renderCatalog();
             }
         }
 
-        function adminAddNewProduct(e) {
+        async function adminAddNewProduct(e) {
             e.preventDefault();
             const name = document.getElementById('add-name').value;
             const category = document.getElementById('add-category').value;
@@ -1139,12 +1167,16 @@
             let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
 
             const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
-            products.push(newProd);
-            saveCloudData();
             
-            alert("Successfully added to the store!");
-            e.target.reset();
-            renderHomePage(); renderCatalog();
+            try {
+                await supabaseClient.from('products').insert([newProd]);
+                products.push(newProd);
+                alert("Successfully added to the store!");
+                e.target.reset();
+                renderHomePage(); renderCatalog();
+            } catch(err) {
+                alert("Error adding product to cloud: " + err.message);
+            }
         }
 
         function openAdminModal() {
@@ -1162,7 +1194,7 @@
 
         function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; }
         
-        function saveAdminProduct() {
+        async function saveAdminProduct() {
             if(!activeProduct) return;
             activeProduct.name = document.getElementById('admin-name').value;
             activeProduct.category = document.getElementById('admin-category').value;
@@ -1178,23 +1210,31 @@
             });
             if (parsedColors.length > 0) activeProduct.colors = parsedColors;
 
-            let idx = products.findIndex(p => p.id === activeProduct.id);
-            if (idx !== -1) products[idx] = activeProduct;
-            
-            saveCloudData();
-            
-            closeAdminModal(); renderHomePage(); renderCatalog(); openProductPage(activeProduct.id);
+            try {
+                await supabaseClient.from('products').update(activeProduct).eq('id', activeProduct.id);
+                let idx = products.findIndex(p => p.id === activeProduct.id);
+                if (idx !== -1) products[idx] = activeProduct;
+                
+                closeAdminModal(); renderHomePage(); renderCatalog(); openProductPage(activeProduct.id);
+            } catch(err) {
+                alert("Error updating product: " + err.message);
+            }
         }
 
-        function deleteAdminProduct() {
+        async function deleteAdminProduct() {
             if(!activeProduct) return;
             if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
-                products = products.filter(p => p.id !== activeProduct.id);
-                saveCloudData();
-                closeAdminModal();
-                switchPage('items');
-                renderHomePage();
-                renderCatalog();
+                try {
+                    await supabaseClient.from('products').delete().eq('id', activeProduct.id);
+                    products = products.filter(p => p.id !== activeProduct.id);
+                    
+                    closeAdminModal();
+                    switchPage('items');
+                    renderHomePage();
+                    renderCatalog();
+                } catch(err) {
+                    alert("Error deleting product: " + err.message);
+                }
             }
         }
     </script>
