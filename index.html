@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Loom Creations | Premium Custom Bands</title>
     
-    <!-- Supabase JS Library -->
+    <!-- 1. Supabase JS Library Properly Loaded -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -314,6 +314,7 @@
                     <span>Place Order</span>
                     <div class="spinner" id="checkout-spinner"></div>
                 </button>
+                <div id="checkout-error" style="color: var(--danger); font-weight: 900; text-align: center; margin-top: 1rem;"></div>
             </form>
         </div>
     </div>
@@ -477,6 +478,8 @@
             <div class="section-tag" style="background: var(--danger); color: white;">Admin Only</div>
             <div class="section-header">Control Panel</div>
             
+            <div id="admin-error-box" style="display:none; background: var(--bg-subtle); border: 2px dashed var(--danger); color: var(--danger); padding: 1rem; margin-bottom: 2rem; font-weight: 900;"></div>
+
             <div class="admin-panel-card">
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Add New Product / Bundle</h3>
                 <form onsubmit="adminAddNewProduct(event)">
@@ -520,9 +523,9 @@
         // ==========================================
         // SUPABASE & FORMSPREE INTEGRATION
         // ==========================================
-        const supabaseUrl = 'https://kpdjcitdvhdgbtsbirkd.supabase.co';
-        const supabaseKey = 'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma';
-        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        // 2. Initialize Supabase Correctly
+        const { createClient } = window.supabase;
+        const _supabase = createClient('https://kpdjcitdvhdgbtsbirkd.supabase.co', 'sb_publishable_DYHY59PxXqHKQyc6D4YWJA_buGDRnma');
 
         const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
 
@@ -555,10 +558,10 @@
         const validPromoCodes = { 'WELCOME15': 0.15, 'MEGALOOM': 0.20 };
         let currentFilter = 'All';
 
-        // --- Cloud Database Fetch/Save ---
+        // --- 3. Cloud Database Fetch with Error Handling ---
         async function loadCloudData() {
             try {
-                const { data, error } = await supabaseClient.from('products').select('*');
+                const { data, error } = await _supabase.from('products').select('*');
                 if (error) throw error;
                 if (data && data.length > 0) {
                     products = data;
@@ -567,13 +570,14 @@
                 }
             } catch(e) {
                 console.warn("Supabase load failed, falling back to defaults.", e);
+                alert("Database Notice: Failed to load live products from Supabase. Falling back to local data. Error: " + e.message);
                 products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
             }
             // Categories kept in Local Storage to avoid breaking "add category" if there's no supabase table for it
             categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
         }
 
-        // --- Address Autocomplete Logic (Robust) ---
+        // --- Address Autocomplete Logic ---
         function setupAddressAutocomplete(inputId, listId, callback) {
             const input = document.getElementById(inputId);
             const list = document.getElementById(listId);
@@ -873,6 +877,7 @@
                 if (p.stock < item.qty) return alert(`Only ${p.stock} of ${p.name} left in stock. Please adjust cart.`);
             }
             
+            document.getElementById('checkout-error').innerText = "";
             document.getElementById('checkout-modal').style.display = 'flex';
             calculateCheckoutModalTotals();
         }
@@ -884,7 +889,11 @@
             e.preventDefault();
             const btn = document.getElementById('checkout-submit-btn');
             const spinner = document.getElementById('checkout-spinner');
-            btn.querySelector('span').style.display = 'none'; spinner.style.display = 'block';
+            const errorBox = document.getElementById('checkout-error');
+            
+            btn.querySelector('span').style.display = 'none'; 
+            spinner.style.display = 'block';
+            errorBox.innerText = "";
 
             let orderDetails = cart.map(item => `${item.qty}x ${item.name} (${item.color.name}) - £${(item.price * item.qty).toFixed(2)}`).join('\n');
             
@@ -913,10 +922,11 @@
 
             try {
                 // 1. Save to Supabase 'orders' table
-                await supabaseClient.from('orders').insert([orderData]);
+                const { error: dbError } = await _supabase.from('orders').insert([orderData]);
+                if (dbError) throw dbError;
 
-                // 2. Send via Formspree
-                await fetch(formspreeEndpoint, {
+                // 2. Send Email via Formspree
+                const formRes = await fetch(formspreeEndpoint, {
                     method: "POST", 
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ 
@@ -927,18 +937,22 @@
                     })
                 });
 
-                // 3. Deduct stock in Supabase
+                if (!formRes.ok) throw new Error("Email notification failed to send.");
+
+                // 3. Deduct stock in Supabase globally
                 for (let item of cart) {
                     let p = products.find(prod => prod.id === item.id);
                     p.stock -= item.qty;
-                    await supabaseClient.from('products').update({ stock: p.stock }).eq('id', p.id);
+                    await _supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
                 }
 
+                // Handle Promo usage locally
                 if (appliedPromoCode) {
                     if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(appliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
                     else { let gc = JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []; gc.push(appliedPromoCode); localStorage.setItem('loom_guest_codes_v2', JSON.stringify(gc)); }
                 }
 
+                // Clear cart & UI
                 cart = []; 
                 localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount();
                 activeDiscount = 0; appliedPromoCode = null;
@@ -951,7 +965,7 @@
                 document.getElementById('success-modal').style.display = 'flex';
                 
             } catch (err) {
-                alert("There was an error processing your order. Please try again.");
+                errorBox.innerText = "Order failed: " + (err.message || "Unknown error occurred.");
                 console.error(err);
             }
 
@@ -981,10 +995,11 @@
 
             try {
                 // 1. Save to Supabase 'orders'
-                await supabaseClient.from('orders').insert([requestData]);
+                const { error: dbError } = await _supabase.from('orders').insert([requestData]);
+                if (dbError) throw dbError;
 
                 // 2. Send via Formspree
-                await fetch(formspreeEndpoint, {
+                const formRes = await fetch(formspreeEndpoint, {
                     method: "POST", 
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ 
@@ -995,10 +1010,12 @@
                     })
                 });
 
+                if (!formRes.ok) throw new Error("Email failed to send.");
+
                 feedback.innerText = "✓ Request Sent Successfully! We will email you shortly."; feedback.style.color = "var(--success)";
                 e.target.reset();
             } catch (err) {
-                feedback.innerText = "⚠️ Error sending. Please try again."; feedback.style.color = "var(--danger)";
+                feedback.innerText = "⚠️ Error sending: " + (err.message || "Unknown error."); feedback.style.color = "var(--danger)";
                 console.error(err);
             }
 
@@ -1072,10 +1089,12 @@
 
             // Fetch orders from Supabase globally
             const ordContainer = document.getElementById('admin-orders-list');
+            const errBox = document.getElementById('admin-error-box');
             ordContainer.innerHTML = '<p>Loading inbox...</p>';
+            errBox.style.display = 'none';
 
             try {
-                const { data, error } = await supabaseClient.from('orders').select('*').order('id', { ascending: false });
+                const { data, error } = await _supabase.from('orders').select('*').order('id', { ascending: false });
                 if (error) throw error;
                 
                 let checkouts = data.filter(o => o.type === 'checkout' || o.items);
@@ -1093,34 +1112,33 @@
                         </div>`;
                 });
 
-                let reqContainer = document.getElementById('admin-requests-list');
-                if(!reqContainer) {
-                    // Backwards compatibility, sometimes I combined them. I see it exists in HTML.
-                    reqContainer = document.getElementById('admin-orders-list'); // fallback
-                } else {
-                    reqContainer.innerHTML = customReqs.length ? '' : '<p>No custom requests yet.</p>';
+                // Display custom requests directly within the admin orders panel block
+                if (customReqs.length > 0) {
+                    ordContainer.innerHTML += '<h4 style="margin-top:2rem; font-weight:900; text-transform:uppercase;">Custom Requests</h4>';
+                    customReqs.forEach((r) => {
+                        ordContainer.innerHTML += `
+                            <div class="admin-list-item">
+                                <button class="delete-btn" onclick="deleteInboxOrder(${r.id})">✕ Delete</button>
+                                <strong style="color:var(--accent-blue);">${r.date || ''}</strong> | <strong>${r.name}</strong> (${r.email})<br>
+                                <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
+                                <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
+                            </div>`;
+                    });
                 }
 
-                customReqs.forEach((r) => {
-                    reqContainer.innerHTML += `
-                        <div class="admin-list-item">
-                            <button class="delete-btn" onclick="deleteInboxOrder(${r.id})">✕ Delete</button>
-                            <strong style="color:var(--accent-blue);">${r.date || ''}</strong> | <strong>${r.name}</strong> (${r.email})<br>
-                            <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
-                            <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
-                        </div>`;
-                });
-
             } catch (e) {
-                ordContainer.innerHTML = `<p style="color:var(--danger)">Error loading inbox: ${e.message}</p>`;
+                ordContainer.innerHTML = '';
+                errBox.style.display = 'block';
+                errBox.innerText = "Admin Database Error: " + e.message;
             }
         }
 
         // --- Admin Deletion Controls ---
         async function deleteInboxOrder(id) {
-            if(confirm("Permanently delete this order from the database?")) {
+            if(confirm("Permanently delete this from the database?")) {
                 try {
-                    await supabaseClient.from('orders').delete().eq('id', id);
+                    const { error } = await _supabase.from('orders').delete().eq('id', id);
+                    if(error) throw error;
                     loadAdminInbox();
                 } catch(e) {
                     alert("Error deleting: " + e.message);
@@ -1169,13 +1187,15 @@
             const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
             
             try {
-                await supabaseClient.from('products').insert([newProd]);
+                const { error } = await _supabase.from('products').insert([newProd]);
+                if (error) throw error;
+
                 products.push(newProd);
-                alert("Successfully added to the store!");
+                alert("Successfully added to the cloud store!");
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product to cloud: " + err.message);
+                alert("Error adding product to cloud database: " + err.message);
             }
         }
 
@@ -1211,13 +1231,15 @@
             if (parsedColors.length > 0) activeProduct.colors = parsedColors;
 
             try {
-                await supabaseClient.from('products').update(activeProduct).eq('id', activeProduct.id);
+                const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
+                if (error) throw error;
+
                 let idx = products.findIndex(p => p.id === activeProduct.id);
                 if (idx !== -1) products[idx] = activeProduct;
                 
                 closeAdminModal(); renderHomePage(); renderCatalog(); openProductPage(activeProduct.id);
             } catch(err) {
-                alert("Error updating product: " + err.message);
+                alert("Error updating product in database: " + err.message);
             }
         }
 
@@ -1225,15 +1247,16 @@
             if(!activeProduct) return;
             if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
                 try {
-                    await supabaseClient.from('products').delete().eq('id', activeProduct.id);
+                    const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
+                    if (error) throw error;
+
                     products = products.filter(p => p.id !== activeProduct.id);
-                    
                     closeAdminModal();
                     switchPage('items');
                     renderHomePage();
                     renderCatalog();
                 } catch(err) {
-                    alert("Error deleting product: " + err.message);
+                    alert("Error deleting product from database: " + err.message);
                 }
             }
         }
