@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Loom Creations | Premium Custom Bands</title>
     
-    <!-- Supabase JS Library Properly Loaded -->
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -34,7 +34,6 @@
 
         body {
             background-color: var(--bg-main);
-            /* Technical Dot Texture Background */
             background-image: radial-gradient(rgba(0, 0, 0, 0.1) 1.5px, transparent 1.5px);
             background-size: 22px 22px;
             color: var(--text-main);
@@ -304,9 +303,9 @@
                     <input type="email" id="checkout-email" class="input-field" required placeholder="jane@example.com">
                 </div>
                 <div class="form-group">
-                    <label>Full Shipping Address (UK ONLY - Type to search)</label>
+                    <label>Full Shipping Address (Type to search)</label>
                     <div class="input-wrapper">
-                        <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..."></textarea>
+                        <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
                         <ul id="checkout-address-list" class="autocomplete-list"></ul>
                     </div>
                 </div>
@@ -427,9 +426,9 @@
                     <div class="form-group"><label>Email Address</label><input type="email" name="email" class="input-field" required></div>
                     
                     <div class="form-group">
-                        <label>Full Shipping Address (UK ONLY - Type to search)</label>
+                        <label>Full Shipping Address (Type to search)</label>
                         <div class="input-wrapper">
-                            <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..."></textarea>
+                            <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
                             <ul id="custom-address-list" class="autocomplete-list"></ul>
                         </div>
                     </div>
@@ -521,7 +520,7 @@
 
     <script>
         // ==========================================
-        // SUPABASE & FORMSPREE INTEGRATION
+        // SUPABASE & FORMSPREE INTEGRATION (FIXED)
         // ==========================================
         let _supabase = null;
         try {
@@ -537,9 +536,6 @@
         }
 
         const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
-
-        // UK Postcode Validation Regex (Strict)
-        const ukPostcodeRegex = /[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}/i;
 
         // Default Data
         const defaultCategories = [
@@ -583,24 +579,30 @@
                 if (data && data.length > 0) {
                     products = data;
                 } else {
-                    // Auto-seed default products
+                    // Auto-seed default products into Supabase so it's global immediately!
                     for (let prod of defaultProducts) {
                         await _supabase.from('products').insert([{
-                            category: prod.category, name: prod.name, price: prod.price, stock: prod.stock,
-                            image: prod.image, description: prod.description, badge: prod.badge, colors: prod.colors
+                            category: prod.category,
+                            name: prod.name,
+                            price: prod.price,
+                            stock: prod.stock,
+                            image: prod.image,
+                            description: prod.description,
+                            badge: prod.badge,
+                            colors: prod.colors
                         }]);
                     }
                     const { data: freshData } = await _supabase.from('products').select('*');
                     products = freshData && freshData.length > 0 ? freshData : defaultProducts;
                 }
             } catch(e) {
-                console.warn("Supabase fetch notice:", e.message);
+                console.warn("Supabase fetch notice (Did you run the SQL table setup script?):", e.message);
                 products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
             }
             categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
         }
 
-        // --- Address Autocomplete Logic (Enhanced for UK) ---
+        // --- Address Autocomplete Logic ---
         function setupAddressAutocomplete(inputId, listId, callback) {
             const input = document.getElementById(inputId);
             const list = document.getElementById(listId);
@@ -611,17 +613,16 @@
                 const val = e.target.value.trim();
                 if (val.length < 4) { list.style.display = 'none'; return; }
                 
-                list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">Searching UK Addresses...</li>';
+                list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">Searching...</li>';
                 list.style.display = 'block';
 
                 timeout = setTimeout(() => {
-                    // Limit=5 and restrict strictly to GB
-                    fetch(`https://nominatim.openstreetmap.org/search?countrycodes=gb&format=json&addressdetails=1&limit=5&q=${encodeURIComponent(val)}`)
+                    fetch(`https://nominatim.openstreetmap.org/search?countrycodes=gb&format=json&addressdetails=1&q=${encodeURIComponent(val)}`)
                     .then(r => r.json())
                     .then(data => {
                         list.innerHTML = '';
                         if(data.length > 0) {
-                            data.forEach(item => {
+                            data.slice(0, 5).forEach(item => {
                                 let li = document.createElement('li');
                                 li.innerText = item.display_name;
                                 li.onclick = () => {
@@ -632,12 +633,12 @@
                                 list.appendChild(li);
                             });
                         } else {
-                            list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">No results found. Please type a valid UK Address manually.</li>';
+                            list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">No results found. Type manually.</li>';
                         }
                     }).catch(() => {
                         list.style.display = 'none';
                     });
-                }, 500); 
+                }, 800); 
             });
             
             document.addEventListener('click', (e) => {
@@ -918,20 +919,13 @@
             const spinner = document.getElementById('checkout-spinner');
             const errorBox = document.getElementById('checkout-error');
             
-            const address = document.getElementById('checkout-address').value;
-
-            // Strict UK Only Validation via Regex Postcode search
-            if (!ukPostcodeRegex.test(address)) {
-                errorBox.innerText = "Error: We only ship to the UK. Please enter a valid UK address including your postcode.";
-                return;
-            }
-
             btn.querySelector('span').style.display = 'none'; 
             spinner.style.display = 'block';
             errorBox.innerText = "";
 
             let orderDetails = cart.map(item => `${item.qty}x ${item.name} (${item.color.name}) - £${(item.price * item.qty).toFixed(2)}`).join('\n');
             
+            const address = document.getElementById('checkout-address').value;
             let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             let discountAmt = subtotal * activeDiscount;
             let delivery = address.toUpperCase().includes('BB5') ? 0 : 5.00;
@@ -941,25 +935,7 @@
             let customerName = document.getElementById('checkout-name').value;
             let customerEmail = document.getElementById('checkout-email').value;
             
-            let messageBody = `
-======================================
-     MAGIC LOOM CREATIONS ORDER
-======================================
-TOTAL PRICE TO COLLECT: ${total}
-DELIVERY FEE APPLIED: £${delivery.toFixed(2)}
-DISCOUNT APPLIED: -${discountStr}
-======================================
-
-Customer Name: ${customerName}
-Customer Email: ${customerEmail}
-Shipping Address: ${address}
-
-Items Ordered:
-${orderDetails}
-
---------------------------------------
-(Please reply directly to ${customerEmail} to send the secure payment link!)
-`;
+            let messageBody = `NEW ORDER RECEIVED!\n\nName: ${customerName}\nEmail: ${customerEmail}\nAddress: ${address}\n\nSummary:\n${orderDetails}\n\nDiscount: -${discountStr}\nDelivery: £${delivery.toFixed(2)}\nTotal: ${total}\n\n(Reply to ${customerEmail} to send the secure payment link!)`;
 
             const orderData = { 
                 id: Date.now(), 
@@ -975,7 +951,7 @@ ${orderDetails}
             try {
                 if (_supabase) {
                     const { error: dbError } = await _supabase.from('orders').insert([orderData]);
-                    if (dbError) throw new Error("Supabase Database Error: " + dbError.message);
+                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
                 }
 
                 const formRes = await fetch(formspreeEndpoint, {
@@ -1029,18 +1005,10 @@ ${orderDetails}
         async function submitCustomOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn'); const spinner = document.getElementById('form-spinner'); const feedback = document.getElementById('form-feedback');
-            const address = e.target.address.value;
-
-            // Strict UK Only Validation via Regex Postcode search
-            if (!ukPostcodeRegex.test(address)) {
-                feedback.innerText = "⚠️ Error: We only ship to the UK. Please enter a valid UK postcode.";
-                feedback.style.color = "var(--danger)";
-                return;
-            }
-
             btn.querySelector('span').style.display = 'none'; spinner.style.display = 'block'; feedback.innerText = "";
             
             const name = e.target.name.value; const email = e.target.email.value; const msg = e.target.message.value;
+            const address = e.target.address.value;
 
             let fullMessage = `CUSTOM ORDER REQUEST\n\nName: ${name}\nEmail: ${email}\nShipping Address: ${address}\n\nVision/Details:\n${msg}`;
 
@@ -1189,7 +1157,7 @@ ${orderDetails}
             } catch (e) {
                 ordContainer.innerHTML = '';
                 errBox.style.display = 'block';
-                errBox.innerText = "Admin Database Error: " + e.message;
+                errBox.innerText = "Admin Database Error: " + e.message + " (Make sure you ran the SQL query in Supabase!)";
             }
         }
 
@@ -1253,7 +1221,7 @@ ${orderDetails}
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product to cloud database: " + err.message);
+                alert("Error adding product to cloud database: " + err.message + " (Did you run the SQL script in Supabase?)");
             }
         }
 
