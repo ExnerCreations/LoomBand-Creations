@@ -266,7 +266,12 @@
                 <label>Category</label>
                 <select id="admin-category" class="select-field"></select>
             </div>
-            <div class="form-group"><label>Image URL</label><input type="text" id="admin-image" class="input-field"></div>
+            
+            <div class="form-group">
+                <label>Product Image (Leave empty to keep current)</label>
+                <input type="file" id="admin-image" class="input-field" accept="image/*" title="Upload Product Image">
+            </div>
+
             <div style="display:flex; gap:1rem;">
                 <div class="form-group" style="flex:1;"><label>Price (£)</label><input type="number" id="admin-price" step="0.01" class="input-field"></div>
                 <div class="form-group" style="flex:1;"><label>Stock Qty</label><input type="number" id="admin-stock" class="input-field"></div>
@@ -489,7 +494,9 @@
                         <input type="number" id="add-price" step="0.01" class="input-field" placeholder="Price (£)" required style="flex:1;">
                         <input type="number" id="add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1;">
                     </div>
-                    <input type="text" id="add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
+                    
+                    <input type="file" id="add-image" class="input-field" accept="image/*" required style="margin-bottom:1rem;" title="Upload Product Image">
+                    
                     <textarea id="add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
                     <input type="text" id="add-colors" class="input-field" placeholder="Colors (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
                     <button type="submit" class="btn-primary" style="background: var(--accent-blue); color:#000;">➕ Add to Store</button>
@@ -500,7 +507,7 @@
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Categories</h3>
                 <form style="display:flex; gap:1rem;" onsubmit="adminAddCategory(event)">
                     <input type="text" id="new-cat-name" class="input-field" placeholder="Category Name" required>
-                    <input type="text" id="new-cat-img" class="input-field" placeholder="Background Image URL" required>
+                    <input type="file" id="new-cat-img" class="input-field" accept="image/*" required title="Upload Category Image">
                     <button type="submit" class="btn-primary" style="background: #000; color:#fff;">➕ Add</button>
                 </form>
                 <div id="admin-category-list" style="margin-top: 1rem;"></div>
@@ -520,6 +527,16 @@
     </footer>
 
     <script>
+        // ==========================================
+        // LOCAL IMAGE UPLOAD HELPER (Base64)
+        // ==========================================
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
         // ==========================================
         // SUPABASE & FORMSPREE INTEGRATION
         // ==========================================
@@ -1189,7 +1206,7 @@ ${orderDetails}
             } catch (e) {
                 ordContainer.innerHTML = '';
                 errBox.style.display = 'block';
-                errBox.innerText = "Admin Database Error: " + e.message;
+                errBox.innerText = "Admin Database Error: " + e.message + " (Make sure you ran the SQL query in Supabase!)";
             }
         }
 
@@ -1205,14 +1222,22 @@ ${orderDetails}
             }
         }
 
-        function adminAddCategory(e) {
+        async function adminAddCategory(e) {
             e.preventDefault();
             const name = document.getElementById('new-cat-name').value;
-            const img = document.getElementById('new-cat-img').value;
-            categories.push({id: Date.now(), name: name, image: img});
-            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
-            e.target.reset();
-            loadAdminInbox(); renderHomePage(); renderCatalog();
+            const file = document.getElementById('new-cat-img').files[0];
+            
+            if(!file) return alert("Please select an image file.");
+            
+            try {
+                const imgBase64 = await toBase64(file);
+                categories.push({id: Date.now(), name: name, image: imgBase64});
+                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+                e.target.reset();
+                loadAdminInbox(); renderHomePage(); renderCatalog();
+            } catch (err) {
+                alert("Error processing local file: " + err.message);
+            }
         }
 
         function deleteCategory(index) {
@@ -1229,31 +1254,37 @@ ${orderDetails}
             const category = document.getElementById('add-category').value;
             const price = parseFloat(document.getElementById('add-price').value);
             const stock = parseInt(document.getElementById('add-stock').value);
-            const image = document.getElementById('add-image').value;
             const desc = document.getElementById('add-desc').value;
             const colorsStr = document.getElementById('add-colors').value;
+            const file = document.getElementById('add-image').files[0];
 
-            let colors = [];
-            colorsStr.split(',').forEach(pair => {
-                let p = pair.split('|');
-                if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
-            });
-            if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
+            if(!file) return alert("Please select a product image file.");
 
-            let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
-
-            const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
-            
             try {
-                const { error } = await _supabase.from('products').insert([newProd]);
-                if (error) throw error;
+                const imageBase64 = await toBase64(file);
+
+                let colors = [];
+                colorsStr.split(',').forEach(pair => {
+                    let p = pair.split('|');
+                    if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
+                });
+                if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
+
+                let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
+
+                const newProd = { id: Date.now(), category, name, price, stock, image: imageBase64, description: desc, badge: badge, colors };
+                
+                if (_supabase) {
+                    const { error } = await _supabase.from('products').insert([newProd]);
+                    if (error) throw error;
+                }
 
                 products.push(newProd);
                 alert("Successfully added to the cloud store!");
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product to cloud database: " + err.message);
+                alert("Error adding product: " + err.message + " (Did you run the SQL script in Supabase?)");
             }
         }
 
@@ -1262,7 +1293,10 @@ ${orderDetails}
             populateAdminCategories();
             document.getElementById('admin-name').value = activeProduct.name;
             document.getElementById('admin-category').value = activeProduct.category || "Bracelets";
-            document.getElementById('admin-image').value = activeProduct.image;
+            
+            // Clear file input; we don't restore old text
+            document.getElementById('admin-image').value = ""; 
+
             document.getElementById('admin-price').value = activeProduct.price;
             document.getElementById('admin-stock').value = activeProduct.stock;
             document.getElementById('admin-desc').value = activeProduct.description;
@@ -1276,10 +1310,15 @@ ${orderDetails}
             if(!activeProduct) return;
             activeProduct.name = document.getElementById('admin-name').value;
             activeProduct.category = document.getElementById('admin-category').value;
-            activeProduct.image = document.getElementById('admin-image').value;
             activeProduct.price = parseFloat(document.getElementById('admin-price').value);
             activeProduct.stock = parseInt(document.getElementById('admin-stock').value);
             activeProduct.description = document.getElementById('admin-desc').value;
+
+            // Handle optional new image upload
+            const fileInput = document.getElementById('admin-image');
+            if (fileInput.files && fileInput.files[0]) {
+                activeProduct.image = await toBase64(fileInput.files[0]);
+            }
 
             let parsedColors = [];
             document.getElementById('admin-colors').value.split(',').forEach(pair => {
@@ -1289,8 +1328,10 @@ ${orderDetails}
             if (parsedColors.length > 0) activeProduct.colors = parsedColors;
 
             try {
-                const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
-                if (error) throw error;
+                if (_supabase) {
+                    const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
+                    if (error) throw error;
+                }
 
                 let idx = products.findIndex(p => p.id === activeProduct.id);
                 if (idx !== -1) products[idx] = activeProduct;
@@ -1305,8 +1346,10 @@ ${orderDetails}
             if(!activeProduct) return;
             if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
                 try {
-                    const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
-                    if (error) throw error;
+                    if (_supabase) {
+                        const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
+                        if (error) throw error;
+                    }
 
                     products = products.filter(p => p.id !== activeProduct.id);
                     closeAdminModal();
