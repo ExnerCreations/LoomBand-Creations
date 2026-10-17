@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Loom Creations | Premium Custom Bands</title>
     
-    <!-- Supabase JS Library -->
+    <!-- Supabase JS Library Properly Loaded -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -34,6 +34,7 @@
 
         body {
             background-color: var(--bg-main);
+            /* Technical Dot Texture Background */
             background-image: radial-gradient(rgba(0, 0, 0, 0.1) 1.5px, transparent 1.5px);
             background-size: 22px 22px;
             color: var(--text-main);
@@ -60,6 +61,21 @@
         }
         .promo-banner p { display: inline-block; animation: marquee 20s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+        /* Dynamic Sale Banner */
+        #active-sale-banner {
+            display: none;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 12px 0;
+            text-align: center;
+            border-bottom: 2px solid #000;
+            z-index: 100;
+            position: relative;
+        }
 
         /* Sticky Header */
         header {
@@ -212,6 +228,9 @@
         <p>🚀 FREE LOCAL DELIVERY (BB5 AREA) &nbsp;&nbsp;|&nbsp;&nbsp; 🔥 USE CODE <strong>WELCOME15</strong> AT CHECKOUT FOR 15% OFF! 🔥 &nbsp;&nbsp;|&nbsp;&nbsp; CUSTOM ORDERS NOW OPEN</p>
     </div>
 
+    <!-- Active Sale Banner (Dynamic) -->
+    <div id="active-sale-banner"></div>
+
     <!-- Navigation -->
     <header id="main-nav">
         <div class="nav-container">
@@ -265,7 +284,12 @@
                 <label>Category</label>
                 <select id="admin-category" class="select-field"></select>
             </div>
-            <div class="form-group"><label>Image URL</label><input type="text" id="admin-image" class="input-field"></div>
+            
+            <div class="form-group">
+                <label>Product Image (Leave empty to keep current)</label>
+                <input type="file" id="admin-image" class="input-field" accept="image/*" title="Upload Product Image">
+            </div>
+
             <div style="display:flex; gap:1rem;">
                 <div class="form-group" style="flex:1;"><label>Price (£)</label><input type="number" id="admin-price" step="0.01" class="input-field"></div>
                 <div class="form-group" style="flex:1;"><label>Stock Qty</label><input type="number" id="admin-stock" class="input-field"></div>
@@ -303,9 +327,9 @@
                     <input type="email" id="checkout-email" class="input-field" required placeholder="jane@example.com">
                 </div>
                 <div class="form-group">
-                    <label>Full Shipping Address (Type to search)</label>
+                    <label>Full Shipping Address (UK ONLY - Type to search)</label>
                     <div class="input-wrapper">
-                        <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
+                        <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..."></textarea>
                         <ul id="checkout-address-list" class="autocomplete-list"></ul>
                     </div>
                 </div>
@@ -415,7 +439,7 @@
             <div style="background: var(--bg-main); padding: 3rem; border: 2px solid var(--border-dark); max-width: 800px; margin: 0 auto; box-shadow: 10px 10px 0px rgba(0,0,0,1);">
                 <p style="margin-bottom: 1rem; color: var(--text-main); font-weight: 700; font-size: 1.1rem;">
                     Want a specific color combo or a personalized 3D print? Fill out the form below. 
-                    This request goes directly to our admin team.
+                    This request goes directly to our admin team. Custom orders start at a base price of <strong>£10.00</strong>.
                 </p>
                 <p style="margin-bottom: 2rem; color: var(--danger); font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">
                     * You will receive a secure payment link via email within 1 week of request approval.
@@ -426,15 +450,28 @@
                     <div class="form-group"><label>Email Address</label><input type="email" name="email" class="input-field" required></div>
                     
                     <div class="form-group">
-                        <label>Full Shipping Address (Type to search)</label>
+                        <label>Full Shipping Address (UK ONLY - Type to search)</label>
                         <div class="input-wrapper">
-                            <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing address or postcode..."></textarea>
+                            <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..."></textarea>
                             <ul id="custom-address-list" class="autocomplete-list"></ul>
                         </div>
                     </div>
 
                     <div class="form-group"><label>Order Details / Vision</label><textarea name="message" class="input-field" rows="5" required placeholder="I'd like a double-fishtail bracelet in Neon Green and Black..."></textarea></div>
                     
+                    <div class="form-group">
+                        <label>Promo Code</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="custom-promo" class="input-field" placeholder="Enter code" style="background: var(--bg-subtle);">
+                            <button type="button" class="btn-primary" style="padding: 0 1rem;" onclick="applyCustomPromo()">Apply</button>
+                        </div>
+                        <div id="custom-promo-msg" style="font-size: 0.85rem; margin-top: 0.5rem; font-weight: 900; text-transform: uppercase;"></div>
+                    </div>
+
+                    <div style="font-size: 1.5rem; font-weight: 900; margin-bottom: 1.5rem; border-top: 2px solid var(--border-light); padding-top: 1rem;">
+                        Base Total: <span id="custom-order-total">£10.00</span>
+                    </div>
+
                     <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background: var(--accent-blue); color: #000; border-color: #000;" id="submit-btn">
                         <span>Send Custom Request</span><div class="spinner" id="form-spinner"></div>
                     </button>
@@ -479,6 +516,43 @@
             
             <div id="admin-error-box" style="display:none; background: var(--bg-subtle); border: 2px dashed var(--danger); color: var(--danger); padding: 1rem; margin-bottom: 2rem; font-weight: 900;"></div>
 
+            <!-- Manage Sales Event -->
+            <div class="admin-panel-card">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">🎉 Manage Sales Event</h3>
+                <form onsubmit="adminStartSale(event)">
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                        <input type="text" id="sale-name" class="input-field" placeholder="Sale Name (e.g. Winter Sale)" required style="flex:2;">
+                        <input type="number" id="sale-discount" class="input-field" placeholder="Discount % (e.g. 20)" required style="flex:1;" min="1" max="100">
+                    </div>
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                        <div style="flex:1;">
+                            <label style="font-weight:900; font-size:0.8rem; text-transform:uppercase;">Banner Color</label>
+                            <input type="color" id="sale-color" class="input-field" value="#ff0000" style="padding: 0.2rem; height: 50px;">
+                        </div>
+                        <div style="flex:2;">
+                            <label style="font-weight:900; font-size:0.8rem; text-transform:uppercase;">End Date & Time</label>
+                            <input type="datetime-local" id="sale-end" class="input-field" required>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:1rem;">
+                        <button type="submit" class="btn-primary" style="flex:1; background: var(--success); color:#000;">Start Storewide Sale</button>
+                        <button type="button" class="btn-primary" style="flex:1; background: var(--danger); color:#fff;" onclick="adminEndSale()">End Current Sale</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Manage Promo Codes -->
+            <div class="admin-panel-card">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">🎟️ Manage Promo Codes</h3>
+                <form style="display:flex; gap:1rem;" onsubmit="adminAddPromo(event)">
+                    <input type="text" id="new-promo-code" class="input-field" placeholder="Code (e.g. WELCOME15)" required style="text-transform:uppercase;">
+                    <input type="number" id="new-promo-disc" class="input-field" placeholder="Discount %" required min="1" max="100">
+                    <button type="submit" class="btn-primary" style="background: #000; color:#fff;">➕ Add Code</button>
+                </form>
+                <div id="admin-promos-list" style="margin-top: 1rem;"></div>
+            </div>
+
+            <!-- Add Product -->
             <div class="admin-panel-card">
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Add New Product / Bundle</h3>
                 <form onsubmit="adminAddNewProduct(event)">
@@ -488,23 +562,27 @@
                         <input type="number" id="add-price" step="0.01" class="input-field" placeholder="Price (£)" required style="flex:1;">
                         <input type="number" id="add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1;">
                     </div>
-                    <input type="text" id="add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
+                    
+                    <input type="file" id="add-image" class="input-field" accept="image/*" required style="margin-bottom:1rem;" title="Upload Product Image">
+                    
                     <textarea id="add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
                     <input type="text" id="add-colors" class="input-field" placeholder="Colors (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
                     <button type="submit" class="btn-primary" style="background: var(--accent-blue); color:#000;">➕ Add to Store</button>
                 </form>
             </div>
 
+            <!-- Manage Categories -->
             <div class="admin-panel-card">
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Categories</h3>
                 <form style="display:flex; gap:1rem;" onsubmit="adminAddCategory(event)">
                     <input type="text" id="new-cat-name" class="input-field" placeholder="Category Name" required>
-                    <input type="text" id="new-cat-img" class="input-field" placeholder="Background Image URL" required>
+                    <input type="file" id="new-cat-img" class="input-field" accept="image/*" required title="Upload Category Image">
                     <button type="submit" class="btn-primary" style="background: #000; color:#fff;">➕ Add</button>
                 </form>
                 <div id="admin-category-list" style="margin-top: 1rem;"></div>
             </div>
 
+            <!-- Inbox -->
             <div class="admin-panel-card">
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Inbox: Orders & Requests</h3>
                 <div id="admin-orders-list"></div>
@@ -520,7 +598,17 @@
 
     <script>
         // ==========================================
-        // SUPABASE & FORMSPREE INTEGRATION (FIXED)
+        // LOCAL IMAGE UPLOAD HELPER (Base64)
+        // ==========================================
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        // ==========================================
+        // SUPABASE & FORMSPREE INTEGRATION
         // ==========================================
         let _supabase = null;
         try {
@@ -536,6 +624,7 @@
         }
 
         const formspreeEndpoint = 'https://formspree.io/f/mjygaabz';
+        const ukPostcodeRegex = /[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}/i;
 
         // Default Data
         const defaultCategories = [
@@ -563,8 +652,13 @@
         let activeColor = null;
         let activeDiscount = 0;
         let appliedPromoCode = null;
-        const validPromoCodes = { 'WELCOME15': 0.15, 'MEGALOOM': 0.20 };
         let currentFilter = 'All';
+
+        // --- Store Settings (Promos & Sales) ---
+        let storeSettings = {
+            activeSale: null, 
+            promos: { 'WELCOME15': 15, 'MEGALOOM': 20 }
+        };
 
         // --- Cloud Database Fetch & Auto-Seeding ---
         async function loadCloudData() {
@@ -577,30 +671,85 @@
                 const { data, error } = await _supabase.from('products').select('*');
                 if (error) throw error;
                 if (data && data.length > 0) {
-                    products = data;
+                    // Extract Hidden Settings Object (ID: 999999999)
+                    let settingsProd = data.find(p => p.id === 999999999);
+                    if (settingsProd) {
+                        try { storeSettings = JSON.parse(settingsProd.description); } catch(e){}
+                    }
+                    // Filter out settings product so it doesn't show in store
+                    products = data.filter(p => p.id !== 999999999);
                 } else {
-                    // Auto-seed default products into Supabase so it's global immediately!
                     for (let prod of defaultProducts) {
                         await _supabase.from('products').insert([{
-                            category: prod.category,
-                            name: prod.name,
-                            price: prod.price,
-                            stock: prod.stock,
-                            image: prod.image,
-                            description: prod.description,
-                            badge: prod.badge,
-                            colors: prod.colors
+                            category: prod.category, name: prod.name, price: prod.price, stock: prod.stock,
+                            image: prod.image, description: prod.description, badge: prod.badge, colors: prod.colors
                         }]);
                     }
                     const { data: freshData } = await _supabase.from('products').select('*');
-                    products = freshData && freshData.length > 0 ? freshData : defaultProducts;
+                    products = freshData && freshData.length > 0 ? freshData.filter(p => p.id !== 999999999) : defaultProducts;
                 }
             } catch(e) {
-                console.warn("Supabase fetch notice (Did you run the SQL table setup script?):", e.message);
+                console.warn("Supabase fetch notice:", e.message);
                 products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
             }
             categories = JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
         }
+
+        async function saveGlobalSettings() {
+            if (_supabase) {
+                const settingsRecord = {
+                    id: 999999999, category: 'Settings', name: 'STORE_SETTINGS', 
+                    price: 0, stock: 0, image: '', description: JSON.stringify(storeSettings), 
+                    badge: '', colors: []
+                };
+                await _supabase.from('products').upsert([settingsRecord]);
+            }
+        }
+
+        // --- Pricing Helpers ---
+        function getEffectivePrice(basePrice) {
+            if (storeSettings.activeSale && new Date() < new Date(storeSettings.activeSale.endTime)) {
+                return basePrice * (1 - storeSettings.activeSale.discount / 100);
+            }
+            return basePrice;
+        }
+
+        function getPriceHTML(basePrice) {
+            if (storeSettings.activeSale && new Date() < new Date(storeSettings.activeSale.endTime)) {
+                let salePrice = basePrice * (1 - storeSettings.activeSale.discount / 100);
+                return `<span style="text-decoration:line-through; color:var(--text-muted); font-size:0.8em; margin-right:5px;">£${Number(basePrice).toFixed(2)}</span><span style="color:var(--danger);">£${Number(salePrice).toFixed(2)}</span>`;
+            }
+            return `£${Number(basePrice).toFixed(2)}`;
+        }
+
+        function updateSaleBanner() {
+            const banner = document.getElementById('active-sale-banner');
+            if (storeSettings.activeSale) {
+                let now = new Date().getTime();
+                let end = new Date(storeSettings.activeSale.endTime).getTime();
+                let distance = end - now;
+
+                if (distance > 0) {
+                    banner.style.display = 'block';
+                    banner.style.backgroundColor = storeSettings.activeSale.color;
+                    
+                    let days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    let mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    
+                    banner.innerHTML = `🔥 ${storeSettings.activeSale.name} - ${storeSettings.activeSale.discount}% OFF EVERYTHING! ENDS IN: ${days}d ${hours}h ${mins}m 🔥`;
+                } else {
+                    banner.style.display = 'none';
+                    storeSettings.activeSale = null;
+                    saveGlobalSettings();
+                    renderHomePage(); renderCatalog();
+                }
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        setInterval(updateSaleBanner, 60000); // Update countdown every minute
 
         // --- Address Autocomplete Logic ---
         function setupAddressAutocomplete(inputId, listId, callback) {
@@ -613,16 +762,16 @@
                 const val = e.target.value.trim();
                 if (val.length < 4) { list.style.display = 'none'; return; }
                 
-                list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">Searching...</li>';
+                list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">Searching UK Addresses...</li>';
                 list.style.display = 'block';
 
                 timeout = setTimeout(() => {
-                    fetch(`https://nominatim.openstreetmap.org/search?countrycodes=gb&format=json&addressdetails=1&q=${encodeURIComponent(val)}`)
+                    fetch(`https://nominatim.openstreetmap.org/search?countrycodes=gb&format=json&addressdetails=1&limit=5&q=${encodeURIComponent(val)}`)
                     .then(r => r.json())
                     .then(data => {
                         list.innerHTML = '';
                         if(data.length > 0) {
-                            data.slice(0, 5).forEach(item => {
+                            data.forEach(item => {
                                 let li = document.createElement('li');
                                 li.innerText = item.display_name;
                                 li.onclick = () => {
@@ -633,12 +782,12 @@
                                 list.appendChild(li);
                             });
                         } else {
-                            list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">No results found. Type manually.</li>';
+                            list.innerHTML = '<li style="color:var(--text-muted); cursor:default;">No results found. Please type a valid UK Address manually.</li>';
                         }
                     }).catch(() => {
                         list.style.display = 'none';
                     });
-                }, 800); 
+                }, 500); 
             });
             
             document.addEventListener('click', (e) => {
@@ -649,6 +798,7 @@
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', async () => {
             await loadCloudData();
+            updateSaleBanner();
             renderHomePage();
             renderCatalog();
             updateUIState();
@@ -712,7 +862,7 @@
                     <div class="img-wrap"><img src="${prod.image}" alt="${prod.name}"></div>
                     <div class="product-info">
                         <h3 class="product-title">${prod.name}</h3>
-                        <div class="product-price">£${Number(prod.price).toFixed(2)}</div>
+                        <div class="product-price">${getPriceHTML(prod.price)}</div>
                         <div class="product-stock" style="color: ${stockColor};">${stockText}</div>
                     </div>
                 </div>
@@ -767,7 +917,7 @@
                 addBtn.disabled = true; addBtn.innerText = "Unavailable";
             }
 
-            document.getElementById('detail-price').innerText = `£${Number(activeProduct.price).toFixed(2)}`;
+            document.getElementById('detail-price').innerHTML = getPriceHTML(activeProduct.price);
             document.getElementById('detail-desc').innerText = activeProduct.description;
             document.getElementById('detail-qty').value = 1;
 
@@ -843,13 +993,14 @@
                 </div>`;
             } else {
                 cart.forEach((item, index) => {
+                    let activeItemPrice = getEffectivePrice(item.price);
                     container.innerHTML += `
                         <div class="basket-item">
                             <img src="${item.image}">
                             <div class="basket-item-info">
                                 <h3 style="text-transform: uppercase; font-size: 1.25rem; font-weight: 900; margin-bottom: 0.2rem; letter-spacing:-0.5px;">${item.name}</h3>
                                 <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 800; margin-bottom: 0.5rem; text-transform: uppercase;">Color: ${item.color.name} | Qty: ${item.qty}</p>
-                                <div style="font-weight: 900; color: var(--text-main); font-size: 1.1rem;">£${(item.price * item.qty).toFixed(2)}</div>
+                                <div style="font-weight: 900; color: var(--text-main); font-size: 1.1rem;">£${(activeItemPrice * item.qty).toFixed(2)}</div>
                             </div>
                             <button onclick="removeFromCart(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900; text-transform: uppercase;">Remove</button>
                         </div>`;
@@ -865,8 +1016,8 @@
 
             if (usedCodes.includes(input)) {
                 msg.innerText = "Code already used."; msg.style.color = "var(--danger)"; activeDiscount = 0; appliedPromoCode = null;
-            } else if (validPromoCodes[input]) {
-                activeDiscount = validPromoCodes[input]; appliedPromoCode = input;
+            } else if (storeSettings.promos[input]) {
+                activeDiscount = storeSettings.promos[input] / 100; appliedPromoCode = input;
                 msg.innerText = `✓ ${(activeDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
             } else {
                 activeDiscount = 0; appliedPromoCode = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
@@ -875,7 +1026,7 @@
         }
 
         function calculateTotals() {
-            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let subtotal = cart.reduce((sum, item) => sum + (getEffectivePrice(item.price) * item.qty), 0);
             let discountAmt = subtotal * activeDiscount;
             let total = Math.max(0, subtotal - discountAmt); 
             
@@ -886,7 +1037,7 @@
 
         function calculateCheckoutModalTotals() {
             const address = document.getElementById('checkout-address').value.toUpperCase();
-            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let subtotal = cart.reduce((sum, item) => sum + (getEffectivePrice(item.price) * item.qty), 0);
             let discountAmt = subtotal * activeDiscount;
             
             let delivery = 5.00;
@@ -919,14 +1070,21 @@
             const spinner = document.getElementById('checkout-spinner');
             const errorBox = document.getElementById('checkout-error');
             
+            const address = document.getElementById('checkout-address').value;
+
+            // Strict UK Only Validation via Regex Postcode search
+            if (!ukPostcodeRegex.test(address)) {
+                errorBox.innerText = "Error: We only ship to the UK. Please enter a valid UK address including your postcode.";
+                return;
+            }
+
             btn.querySelector('span').style.display = 'none'; 
             spinner.style.display = 'block';
             errorBox.innerText = "";
 
-            let orderDetails = cart.map(item => `${item.qty}x ${item.name} (${item.color.name}) - £${(item.price * item.qty).toFixed(2)}`).join('\n');
+            let orderDetails = cart.map(item => `${item.qty}x ${item.name} (${item.color.name}) - £${(getEffectivePrice(item.price) * item.qty).toFixed(2)}`).join('\n');
             
-            const address = document.getElementById('checkout-address').value;
-            let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let subtotal = cart.reduce((sum, item) => sum + (getEffectivePrice(item.price) * item.qty), 0);
             let discountAmt = subtotal * activeDiscount;
             let delivery = address.toUpperCase().includes('BB5') ? 0 : 5.00;
             let total = `£${Math.max(0, (subtotal - discountAmt) + delivery).toFixed(2)}`;
@@ -935,7 +1093,25 @@
             let customerName = document.getElementById('checkout-name').value;
             let customerEmail = document.getElementById('checkout-email').value;
             
-            let messageBody = `NEW ORDER RECEIVED!\n\nName: ${customerName}\nEmail: ${customerEmail}\nAddress: ${address}\n\nSummary:\n${orderDetails}\n\nDiscount: -${discountStr}\nDelivery: £${delivery.toFixed(2)}\nTotal: ${total}\n\n(Reply to ${customerEmail} to send the secure payment link!)`;
+            let messageBody = `
+======================================
+     MAGIC LOOM CREATIONS ORDER
+======================================
+TOTAL PRICE TO COLLECT: ${total}
+DELIVERY FEE APPLIED: £${delivery.toFixed(2)}
+DISCOUNT APPLIED: -${discountStr}
+======================================
+
+Customer Name: ${customerName}
+Customer Email: ${customerEmail}
+Shipping Address: ${address}
+
+Items Ordered:
+${orderDetails}
+
+--------------------------------------
+(Please reply directly to ${customerEmail} to send the secure payment link!)
+`;
 
             const orderData = { 
                 id: Date.now(), 
@@ -951,7 +1127,7 @@
             try {
                 if (_supabase) {
                     const { error: dbError } = await _supabase.from('orders').insert([orderData]);
-                    if (dbError) throw new Error("Supabase Orders Error: " + dbError.message + " (Did you run the SQL table setup script in Supabase?)");
+                    if (dbError) throw new Error("Supabase Database Error: " + dbError.message);
                 }
 
                 const formRes = await fetch(formspreeEndpoint, {
@@ -1001,16 +1177,72 @@
             btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
         }
 
-        // --- Custom Orders ---
+        // --- Custom Orders (With Base Price & Promo) ---
+        let customActiveDiscount = 0;
+        let customAppliedPromoCode = null;
+        
+        function calculateCustomTotal() {
+            let base = 10.00;
+            let effectiveBase = getEffectivePrice(base);
+            let discount = effectiveBase * customActiveDiscount;
+            let total = Math.max(0, effectiveBase - discount);
+            document.getElementById('custom-order-total').innerText = `£${total.toFixed(2)}`;
+            return { effectiveBase, discount, total };
+        }
+
+        function applyCustomPromo() {
+            const input = document.getElementById('custom-promo').value.toUpperCase().trim();
+            const msg = document.getElementById('custom-promo-msg');
+            let usedCodes = user ? (user.usedCodes || []) : (JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []);
+
+            if (usedCodes.includes(input)) {
+                msg.innerText = "Code already used."; msg.style.color = "var(--danger)"; customActiveDiscount = 0; customAppliedPromoCode = null;
+            } else if (storeSettings.promos[input]) {
+                customActiveDiscount = storeSettings.promos[input] / 100; customAppliedPromoCode = input;
+                msg.innerText = `✓ ${(customActiveDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
+            } else {
+                customActiveDiscount = 0; customAppliedPromoCode = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
+            }
+            calculateCustomTotal();
+        }
+
         async function submitCustomOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-btn'); const spinner = document.getElementById('form-spinner'); const feedback = document.getElementById('form-feedback');
+            const address = e.target.address.value;
+
+            if (!ukPostcodeRegex.test(address)) {
+                feedback.innerText = "⚠️ Error: We only ship to the UK. Please enter a valid UK postcode.";
+                feedback.style.color = "var(--danger)";
+                return;
+            }
+
             btn.querySelector('span').style.display = 'none'; spinner.style.display = 'block'; feedback.innerText = "";
             
             const name = e.target.name.value; const email = e.target.email.value; const msg = e.target.message.value;
-            const address = e.target.address.value;
+            const { total, discount } = calculateCustomTotal();
+            const delivery = address.toUpperCase().includes('BB5') ? 0 : 5.00;
+            const grandTotal = `£${(total + delivery).toFixed(2)}`;
 
-            let fullMessage = `CUSTOM ORDER REQUEST\n\nName: ${name}\nEmail: ${email}\nShipping Address: ${address}\n\nVision/Details:\n${msg}`;
+            let fullMessage = `
+======================================
+ CUSTOM ORDER REQUEST
+======================================
+TOTAL PRICE TO COLLECT: ${grandTotal}
+Base Price: £10.00
+Delivery Fee: £${delivery.toFixed(2)}
+Discount Applied: -£${discount.toFixed(2)}
+======================================
+
+Name: ${name}
+Email: ${email}
+Shipping Address: ${address}
+
+Vision/Details:
+${msg}
+--------------------------------------
+(Reply directly to ${email} to send the secure payment link!)
+`;
 
             const requestData = { 
                 id: Date.now(), 
@@ -1019,6 +1251,7 @@
                 email: email, 
                 address: address, 
                 message: msg,
+                total: grandTotal,
                 type: 'custom_request'
             };
 
@@ -1035,14 +1268,22 @@
                         name, 
                         email, 
                         message: fullMessage, 
-                        _subject: "New Custom Loom Order Request" 
+                        _subject: `NEW CUSTOM ORDER: ${grandTotal} from ${name}` 
                     })
                 });
 
                 if (!formRes.ok) throw new Error("Email failed to send via Formspree.");
 
+                if (customAppliedPromoCode) {
+                    if (user) { user.usedCodes = user.usedCodes || []; user.usedCodes.push(customAppliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user)); }
+                    else { let gc = JSON.parse(localStorage.getItem('loom_guest_codes_v2')) || []; gc.push(customAppliedPromoCode); localStorage.setItem('loom_guest_codes_v2', JSON.stringify(gc)); }
+                }
+
                 feedback.innerText = "✓ Request Sent Successfully! We will email you shortly."; feedback.style.color = "var(--success)";
                 e.target.reset();
+                customActiveDiscount = 0; customAppliedPromoCode = null;
+                document.getElementById('custom-promo').value = ""; document.getElementById('custom-promo-msg').innerText = "";
+                calculateCustomTotal();
             } catch (err) {
                 feedback.innerText = "⚠️ Error sending: " + (err.message || "Unknown error."); feedback.style.color = "var(--danger)";
                 console.error(err);
@@ -1106,6 +1347,18 @@
         async function loadAdminInbox() {
             populateAdminCategories();
 
+            // Load Promos list
+            const promoList = document.getElementById('admin-promos-list');
+            promoList.innerHTML = '';
+            Object.keys(storeSettings.promos).forEach(code => {
+                promoList.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid var(--border-light); font-weight:700;">
+                        <span>${code} (${storeSettings.promos[code]}% OFF)</span>
+                        <button onclick="adminDeletePromo('${code}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900;">✕ Delete</button>
+                    </div>`;
+            });
+
+            // Load Categories list
             const catListContainer = document.getElementById('admin-category-list');
             catListContainer.innerHTML = '';
             categories.forEach((c, index) => {
@@ -1150,6 +1403,7 @@
                                 <strong style="color:var(--accent-blue);">${r.date || ''}</strong> | <strong>${r.name}</strong> (${r.email})<br>
                                 <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
                                 <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
+                                <div style="background:var(--success); color:#000; padding:10px; margin-top:10px; font-weight:900; font-size:1.5rem; text-transform:uppercase; border: 2px solid #000; display: inline-block;">Total: ${r.total || '£10.00+'}</div>
                             </div>`;
                     });
                 }
@@ -1173,14 +1427,64 @@
             }
         }
 
-        function adminAddCategory(e) {
+        // --- Admin Sale Management ---
+        function adminStartSale(e) {
+            e.preventDefault();
+            storeSettings.activeSale = {
+                name: document.getElementById('sale-name').value,
+                discount: parseInt(document.getElementById('sale-discount').value),
+                color: document.getElementById('sale-color').value,
+                endTime: document.getElementById('sale-end').value
+            };
+            saveGlobalSettings();
+            updateSaleBanner();
+            renderHomePage(); renderCatalog();
+            alert(`Sale Started!`);
+            e.target.reset();
+        }
+        function adminEndSale() {
+            storeSettings.activeSale = null;
+            saveGlobalSettings();
+            updateSaleBanner();
+            renderHomePage(); renderCatalog();
+            alert("Sale Ended.");
+        }
+
+        // --- Admin Promo Management ---
+        function adminAddPromo(e) {
+            e.preventDefault();
+            const code = document.getElementById('new-promo-code').value.toUpperCase().trim();
+            const disc = parseInt(document.getElementById('new-promo-disc').value);
+            storeSettings.promos[code] = disc;
+            saveGlobalSettings();
+            loadAdminInbox();
+            e.target.reset();
+        }
+        function adminDeletePromo(code) {
+            if(confirm(`Delete promo code ${code}?`)) {
+                delete storeSettings.promos[code];
+                saveGlobalSettings();
+                loadAdminInbox();
+            }
+        }
+
+        // --- Product & Category Management ---
+        async function adminAddCategory(e) {
             e.preventDefault();
             const name = document.getElementById('new-cat-name').value;
-            const img = document.getElementById('new-cat-img').value;
-            categories.push({id: Date.now(), name: name, image: img});
-            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
-            e.target.reset();
-            loadAdminInbox(); renderHomePage(); renderCatalog();
+            const file = document.getElementById('new-cat-img').files[0];
+            
+            if(!file) return alert("Please select an image file.");
+            
+            try {
+                const imgBase64 = await toBase64(file);
+                categories.push({id: Date.now(), name: name, image: imgBase64});
+                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+                e.target.reset();
+                loadAdminInbox(); renderHomePage(); renderCatalog();
+            } catch (err) {
+                alert("Error processing local file: " + err.message);
+            }
         }
 
         function deleteCategory(index) {
@@ -1197,31 +1501,37 @@
             const category = document.getElementById('add-category').value;
             const price = parseFloat(document.getElementById('add-price').value);
             const stock = parseInt(document.getElementById('add-stock').value);
-            const image = document.getElementById('add-image').value;
             const desc = document.getElementById('add-desc').value;
             const colorsStr = document.getElementById('add-colors').value;
+            const file = document.getElementById('add-image').files[0];
 
-            let colors = [];
-            colorsStr.split(',').forEach(pair => {
-                let p = pair.split('|');
-                if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
-            });
-            if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
+            if(!file) return alert("Please select a product image file.");
 
-            let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
-
-            const newProd = { id: Date.now(), category, name, price, stock, image, description: desc, badge: badge, colors };
-            
             try {
-                const { error } = await _supabase.from('products').insert([newProd]);
-                if (error) throw error;
+                const imageBase64 = await toBase64(file);
+
+                let colors = [];
+                colorsStr.split(',').forEach(pair => {
+                    let p = pair.split('|');
+                    if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
+                });
+                if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
+
+                let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
+
+                const newProd = { id: Date.now(), category, name, price, stock, image: imageBase64, description: desc, badge: badge, colors };
+                
+                if (_supabase) {
+                    const { error } = await _supabase.from('products').insert([newProd]);
+                    if (error) throw error;
+                }
 
                 products.push(newProd);
                 alert("Successfully added to the cloud store!");
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product to cloud database: " + err.message + " (Did you run the SQL script in Supabase?)");
+                alert("Error adding product: " + err.message + " (Did you run the SQL script in Supabase?)");
             }
         }
 
@@ -1230,7 +1540,9 @@
             populateAdminCategories();
             document.getElementById('admin-name').value = activeProduct.name;
             document.getElementById('admin-category').value = activeProduct.category || "Bracelets";
-            document.getElementById('admin-image').value = activeProduct.image;
+            
+            document.getElementById('admin-image').value = ""; 
+
             document.getElementById('admin-price').value = activeProduct.price;
             document.getElementById('admin-stock').value = activeProduct.stock;
             document.getElementById('admin-desc').value = activeProduct.description;
@@ -1244,10 +1556,14 @@
             if(!activeProduct) return;
             activeProduct.name = document.getElementById('admin-name').value;
             activeProduct.category = document.getElementById('admin-category').value;
-            activeProduct.image = document.getElementById('admin-image').value;
             activeProduct.price = parseFloat(document.getElementById('admin-price').value);
             activeProduct.stock = parseInt(document.getElementById('admin-stock').value);
             activeProduct.description = document.getElementById('admin-desc').value;
+
+            const fileInput = document.getElementById('admin-image');
+            if (fileInput.files && fileInput.files[0]) {
+                activeProduct.image = await toBase64(fileInput.files[0]);
+            }
 
             let parsedColors = [];
             document.getElementById('admin-colors').value.split(',').forEach(pair => {
@@ -1257,8 +1573,10 @@
             if (parsedColors.length > 0) activeProduct.colors = parsedColors;
 
             try {
-                const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
-                if (error) throw error;
+                if (_supabase) {
+                    const { error } = await _supabase.from('products').update(activeProduct).eq('id', activeProduct.id);
+                    if (error) throw error;
+                }
 
                 let idx = products.findIndex(p => p.id === activeProduct.id);
                 if (idx !== -1) products[idx] = activeProduct;
@@ -1273,8 +1591,10 @@
             if(!activeProduct) return;
             if(confirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
                 try {
-                    const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
-                    if (error) throw error;
+                    if (_supabase) {
+                        const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
+                        if (error) throw error;
+                    }
 
                     products = products.filter(p => p.id !== activeProduct.id);
                     closeAdminModal();
