@@ -286,8 +286,8 @@
             </div>
             
             <div class="form-group">
-                <label>Product Image (Leave empty to keep current)</label>
-                <input type="file" id="admin-image" class="input-field" accept="image/*" title="Upload Product Image">
+                <label>Product Image URL (Leave empty to keep current)</label>
+                <input type="text" id="admin-image" class="input-field" placeholder="Image URL (Leave empty to keep current)">
             </div>
 
             <div style="display:flex; gap:1rem;">
@@ -563,7 +563,7 @@
                         <input type="number" id="add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1;">
                     </div>
                     
-                    <input type="file" id="add-image" class="input-field" accept="image/*" required style="margin-bottom:1rem;" title="Upload Product Image">
+                    <input type="text" id="add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
                     
                     <textarea id="add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
                     <input type="text" id="add-colors" class="input-field" placeholder="Colors (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
@@ -576,7 +576,7 @@
                 <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Categories</h3>
                 <form style="display:flex; gap:1rem;" onsubmit="adminAddCategory(event)">
                     <input type="text" id="new-cat-name" class="input-field" placeholder="Category Name" required>
-                    <input type="file" id="new-cat-img" class="input-field" accept="image/*" required title="Upload Category Image">
+                    <input type="text" id="new-cat-img" class="input-field" placeholder="Background Image URL" required>
                     <button type="submit" class="btn-primary" style="background: #000; color:#fff;">➕ Add</button>
                 </form>
                 <div id="admin-category-list" style="margin-top: 1rem;"></div>
@@ -597,16 +597,6 @@
     </footer>
 
     <script>
-        // ==========================================
-        // LOCAL IMAGE UPLOAD HELPER (Base64)
-        // ==========================================
-        const toBase64 = file => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-
         // ==========================================
         // SUPABASE & FORMSPREE INTEGRATION
         // ==========================================
@@ -1469,22 +1459,14 @@ ${msg}
         }
 
         // --- Product & Category Management ---
-        async function adminAddCategory(e) {
+        function adminAddCategory(e) {
             e.preventDefault();
             const name = document.getElementById('new-cat-name').value;
-            const file = document.getElementById('new-cat-img').files[0];
-            
-            if(!file) return alert("Please select an image file.");
-            
-            try {
-                const imgBase64 = await toBase64(file);
-                categories.push({id: Date.now(), name: name, image: imgBase64});
-                localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
-                e.target.reset();
-                loadAdminInbox(); renderHomePage(); renderCatalog();
-            } catch (err) {
-                alert("Error processing local file: " + err.message);
-            }
+            const img = document.getElementById('new-cat-img').value;
+            categories.push({id: Date.now(), name: name, image: img});
+            localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
+            e.target.reset();
+            loadAdminInbox(); renderHomePage(); renderCatalog();
         }
 
         function deleteCategory(index) {
@@ -1503,35 +1485,38 @@ ${msg}
             const stock = parseInt(document.getElementById('add-stock').value);
             const desc = document.getElementById('add-desc').value;
             const colorsStr = document.getElementById('add-colors').value;
-            const file = document.getElementById('add-image').files[0];
+            const image = document.getElementById('add-image').value;
 
-            if(!file) return alert("Please select a product image file.");
+            let colors = [];
+            colorsStr.split(',').forEach(pair => {
+                let p = pair.split('|');
+                if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
+            });
+            if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
 
+            let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
+
+            const newProd = { category, name, price, stock, image: image, description: desc, badge: badge, colors };
+            
             try {
-                const imageBase64 = await toBase64(file);
-
-                let colors = [];
-                colorsStr.split(',').forEach(pair => {
-                    let p = pair.split('|');
-                    if(p.length === 2) colors.push({name: p[0].trim(), hex: p[1].trim()});
-                });
-                if(colors.length === 0) colors.push({name: "Standard", hex: "#000000"});
-
-                let badge = category.toLowerCase() === 'bundles' ? "BUNDLE" : "NEW";
-
-                const newProd = { id: Date.now(), category, name, price, stock, image: imageBase64, description: desc, badge: badge, colors };
-                
                 if (_supabase) {
-                    const { error } = await _supabase.from('products').insert([newProd]);
+                    const { error, data } = await _supabase.from('products').insert([newProd]).select();
                     if (error) throw error;
+                    if (data && data[0]) {
+                        newProd.id = data[0].id;
+                    } else {
+                        newProd.id = Date.now();
+                    }
+                } else {
+                    newProd.id = Date.now();
                 }
 
                 products.push(newProd);
-                alert("Successfully added to the cloud store!");
+                alert("Successfully added to the store!");
                 e.target.reset();
                 renderHomePage(); renderCatalog();
             } catch(err) {
-                alert("Error adding product: " + err.message + " (Did you run the SQL script in Supabase?)");
+                alert("Error adding product to database: " + err.message + " (Did you run the SQL script in Supabase?)");
             }
         }
 
@@ -1560,9 +1545,9 @@ ${msg}
             activeProduct.stock = parseInt(document.getElementById('admin-stock').value);
             activeProduct.description = document.getElementById('admin-desc').value;
 
-            const fileInput = document.getElementById('admin-image');
-            if (fileInput.files && fileInput.files[0]) {
-                activeProduct.image = await toBase64(fileInput.files[0]);
+            const imageInput = document.getElementById('admin-image').value.trim();
+            if (imageInput) {
+                activeProduct.image = imageInput;
             }
 
             let parsedColors = [];
