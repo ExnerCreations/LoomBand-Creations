@@ -1,8 +1,15 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Loom Creations &amp; Exner Creations</title>
 <!-- Supabase JS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-    /* Premium T13 & Dynamic Variables */
+    /* Core Theme Variables */
     :root {
         --bg-main: #ffffff;
         --bg-subtle: #f4f4f5;
@@ -120,7 +127,7 @@
     .btn-primary:active { transform: scale(0.98); box-shadow: none; }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 
-    main { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 4rem 2rem; }
+    main { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 4rem 2rem; position: relative; z-index: 2; }
     .page-section { display: none; animation: fadeIn 0.4s ease; }
     .page-section.active { display: block; }
 
@@ -138,8 +145,51 @@
     .product-card { background: var(--bg-main); border: 2px solid var(--border-light); overflow: hidden; position: relative; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; }
     .product-card:hover { border-color: var(--border-dark); transform: translateY(-5px); box-shadow: 8px 8px 0px var(--text-main); }
     
-    .discount-tag { position: absolute; top: 15px; left: 15px; background: var(--accent-blue); color: #fff; font-size: 0.75rem; font-weight: 900; padding: 0.4rem 0.8rem; z-index: 2; text-transform: uppercase; border: 2px solid var(--border-dark); box-shadow: 3px 3px 0px var(--text-main); }
+    /* Non-Overriding Stacked Badge System */
+    .badge-stack {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 3;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-start;
+        pointer-events: none;
+    }
+    .discount-tag { position: relative; background: var(--accent-blue); color: #fff; font-size: 0.72rem; font-weight: 900; padding: 0.35rem 0.75rem; z-index: 2; text-transform: uppercase; border: 2px solid var(--border-dark); box-shadow: 3px 3px 0px var(--text-main); display: inline-block; }
     .discount-tag.limited-tag { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border-color: #000; letter-spacing: 1px; }
+    .welcome-deal-tag {
+        background: var(--success);
+        color: #000;
+        font-size: 0.68rem;
+        font-weight: 900;
+        padding: 0.28rem 0.65rem;
+        text-transform: uppercase;
+        border: 2px solid #000;
+        box-shadow: 3px 3px 0px #000;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .multi-img-pill {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(9, 9, 11, 0.85);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 900;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.25);
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
     .img-wrap { overflow: hidden; aspect-ratio: 1 / 1; background: var(--bg-subtle); border-bottom: 2px solid var(--border-light); position: relative;}
     .product-card:hover .img-wrap { border-bottom-color: var(--border-dark); }
     .img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
@@ -147,16 +197,59 @@
     
     .product-info { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
     .product-title { font-size: 1.25rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
-    .product-price { font-size: 1.2rem; font-weight: 900; color: var(--text-main); }
+    .product-price { font-size: 1.2rem; font-weight: 900; color: var(--text-main); display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
     .product-stock { font-size: 0.8rem; font-weight: 800; margin-top: 5px; text-transform: uppercase; }
 
-    /* Detail Page */
+    /* Detail Page & Multi-Image Gallery */
     .product-detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
     .product-gallery { border: 2px solid var(--border-dark); padding: 1rem; background: var(--bg-subtle); box-shadow: 10px 10px 0px var(--text-main); position: relative;}
-    .product-gallery img { width: 100%; object-fit: cover; aspect-ratio: 4/3; border: 2px solid var(--border-dark); }
+    .product-gallery-main-wrap { position: relative; width: 100%; aspect-ratio: 4/3; overflow: hidden; border: 2px solid var(--border-dark); background: var(--bg-main); }
+    .product-gallery-main-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(9, 9, 11, 0.85);
+        color: #fff;
+        border: 2px solid #fff;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 5;
+        transition: background 0.2s, transform 0.2s;
+    }
+    .gallery-nav-btn:hover { background: var(--accent-blue); transform: translateY(-50%) scale(1.08); }
+    .gallery-nav-btn.prev { left: 10px; }
+    .gallery-nav-btn.next { right: 10px; }
+    .detail-thumbs-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+    .detail-thumb {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border: 2px solid var(--border-light);
+        cursor: pointer;
+        opacity: 0.65;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+    .detail-thumb:hover, .detail-thumb.active {
+        opacity: 1;
+        border-color: var(--accent-blue);
+        box-shadow: 3px 3px 0px var(--text-main);
+    }
     
     .product-meta h1 { font-size: 3.5rem; font-weight: 900; text-transform: uppercase; line-height: 1; margin-bottom: 1rem; letter-spacing: -2px; background: var(--bg-main); display: inline-block; }
-    .product-meta .price { font-size: 2rem; font-weight: 900; color: var(--text-main); margin-bottom: 0.5rem; background: var(--bg-main); display: inline-block; padding: 0 5px; }
+    .product-meta .price { font-size: 2rem; font-weight: 900; color: var(--text-main); margin-bottom: 0.5rem; background: var(--bg-main); display: inline-flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 0 5px; }
     .product-meta .stock-status { font-size: 0.9rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1.5rem; background: var(--bg-main); display: inline-block; padding: 0 5px; margin-top: 10px; color: var(--success); }
     .product-meta .stock-status.out { color: var(--danger); }
     .product-meta .desc { font-size: 1.1rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem; font-weight: 500; background: var(--bg-subtle); padding: 1.5rem; border: 2px dashed var(--border-light); }
@@ -215,7 +308,59 @@
     .admin-panel-card { background: var(--bg-subtle); border: 2px solid var(--border-dark); padding: 2rem; margin-bottom: 2rem; box-shadow: 6px 6px 0px var(--text-main); }
     .admin-list-item { background: var(--bg-main); border: 1px solid var(--border-dark); padding: 1rem; margin-bottom: 1rem; position: relative; }
     .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--danger); font-weight: 900; cursor: pointer; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
-    
+
+    /* Analytics Metric Cards */
+    .analytics-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .analytics-stat-box {
+        background: var(--bg-main);
+        border: 2px solid var(--border-dark);
+        padding: 1.2rem;
+        box-shadow: 4px 4px 0px var(--text-main);
+    }
+    .analytics-stat-box .stat-label {
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        margin-bottom: 0.4rem;
+    }
+    .analytics-stat-box .stat-value {
+        font-size: 2rem;
+        font-weight: 900;
+        color: var(--accent-blue);
+        line-height: 1.1;
+    }
+    .analytics-stat-box .stat-sub {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-top: 0.3rem;
+    }
+
+    /* Saved Discounts Wallet Card */
+    .discount-wallet-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.2rem;
+        background: var(--bg-subtle);
+        border: 2px solid var(--border-dark);
+        margin-bottom: 1rem;
+        box-shadow: 4px 4px 0px var(--text-main);
+    }
+    .discount-wallet-item.used {
+        opacity: 0.55;
+        box-shadow: none;
+        border-style: dashed;
+    }
+
     /* WIX/GUTENBERG VISUAL BUILDER UI & DRAG AND DROP */
     body.build-mode-active { padding-top: 50px; padding-left: 260px; padding-right: 320px; overflow-x: hidden; }
     
@@ -287,7 +432,7 @@
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     .build-mode-active .builder-canvas-block.selected .resize-handle,
-    .build-mode-active . builder-canvas-block:hover .resize-handle {
+    .build-mode-active .builder-canvas-block:hover .resize-handle {
         display: block;
     }
 
@@ -316,6 +461,168 @@
         transform: scale(1.02);
     }
 
+    /* Enhanced Tactile Scratch Card & Super Deal Modal */
+    .super-deal-box {
+        background: var(--bg-main);
+        border: 4px solid var(--border-dark);
+        box-shadow: 16px 16px 0px #000;
+        max-width: 480px;
+        width: 100%;
+        padding: 2.5rem 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.35s ease;
+    }
+    .super-deal-badge-top {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 16px;
+        font-weight: 900;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        border: 2px solid #000;
+        box-shadow: 3px 3px 0px #000;
+        margin-bottom: 1rem;
+    }
+    .scratch-stage {
+        position: relative;
+        width: 100%;
+        height: 185px;
+        border: 3px solid var(--border-dark);
+        border-radius: 8px;
+        margin: 1.2rem 0 0.75rem;
+        background: radial-gradient(circle at center, #fffbeb 0%, #fef3c7 65%, #fde68a 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        overflow: hidden;
+        box-shadow: inset 0 0 20px rgba(217, 119, 6, 0.25);
+    }
+    .scratch-stage.revealed {
+        border-color: var(--success);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+    }
+    .scratch-stage canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        z-index: 4;
+        touch-action: none;
+        transition: opacity 0.45s ease;
+    }
+    .scratch-stage canvas:active {
+        cursor: grabbing;
+    }
+    .scratch-prize-under {
+        z-index: 2;
+        color: #09090b;
+        padding: 1rem;
+        text-align: center;
+    }
+    .scratch-progress-bar-wrap {
+        width: 100%;
+        height: 8px;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-dark);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-bottom: 1.2rem;
+    }
+    .scratch-progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--accent-blue);
+        transition: width 0.15s ease;
+    }
+
+    /* Ambient Seasonal Theme Layer */
+    #ambient-fx-layer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 900;
+        overflow: hidden;
+    }
+    .ambient-corner-decor {
+        position: fixed;
+        width: 155px;
+        height: 155px;
+        opacity: 0.26;
+        pointer-events: none;
+        z-index: 95;
+        color: var(--text-main);
+    }
+    .ambient-corner-decor.top-left { top: 40px; left: 0; }
+    .ambient-corner-decor.top-right { top: 40px; right: 0; transform: scaleX(-1); }
+
+    .ambient-spider-drop {
+        position: fixed;
+        top: -220px;
+        z-index: 901;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: var(--text-main);
+        animation: spiderDangleAnim 11s ease-in-out forwards;
+    }
+    .ambient-spider-thread {
+        width: 1.5px;
+        height: 190px;
+        background: currentColor;
+        opacity: 0.4;
+    }
+    @keyframes spiderDangleAnim {
+        0% { transform: translateY(-40px); opacity: 0; }
+        18% { transform: translateY(150px); opacity: 0.85; }
+        45% { transform: translateY(115px); opacity: 0.85; }
+        72% { transform: translateY(170px); opacity: 0.85; }
+        100% { transform: translateY(-40px); opacity: 0; }
+    }
+
+    .ambient-gentle-fall {
+        position: fixed;
+        top: -50px;
+        z-index: 901;
+        pointer-events: none;
+        opacity: 0.72;
+        animation: gentleFallAnim 12s linear forwards;
+    }
+    @keyframes gentleFallAnim {
+        0% { transform: translateY(-30px) translateX(0px) rotate(0deg); opacity: 0; }
+        12% { opacity: 0.75; }
+        50% { transform: translateY(50vh) translateX(18px) rotate(180deg); opacity: 0.75; }
+        88% { opacity: 0.75; }
+        100% { transform: translateY(105vh) translateX(-12px) rotate(360deg); opacity: 0; }
+    }
+
+    .ambient-gentle-rise {
+        position: fixed;
+        bottom: -60px;
+        z-index: 901;
+        pointer-events: none;
+        opacity: 0.75;
+        animation: gentleRiseAnim 12s ease-in-out forwards;
+    }
+    @keyframes gentleRiseAnim {
+        0% { transform: translateY(40px) translateX(0px); opacity: 0; }
+        15% { opacity: 0.78; }
+        50% { transform: translateY(-50vh) translateX(-15px); opacity: 0.78; }
+        85% { opacity: 0.78; }
+        100% { transform: translateY(-108vh) translateX(12px); opacity: 0; }
+    }
+
     /* Animations */
     .anim-fade { animation: fadeIn 0.8s ease forwards; }
     .anim-slide-up { animation: fadeInUp 0.8s ease forwards; }
@@ -336,6 +643,8 @@
         margin-top: auto;
         border-top: 4px solid var(--accent-blue);
         padding: 4rem 2rem 2rem;
+        position: relative;
+        z-index: 2;
     }
     .footer-container {
         max-width: 1400px;
@@ -433,6 +742,11 @@
         .section-header { font-size: 2rem; flex-direction: column; align-items: flex-start;}
     }
 </style>
+</head>
+<body>
+
+<!-- AMBIENT SEASONAL FX CONTAINER -->
+<div id="ambient-fx-layer"></div>
 
 <!-- GLOBAL CUSTOM MODALS -->
 <div id="custom-dialog-modal" class="modal-overlay" style="z-index: 99999;">
@@ -446,12 +760,63 @@
     </div>
 </div>
 
+<!-- SUPER DEAL / SCRATCH CARD MODAL -->
+<div id="super-deal-modal" class="modal-overlay" style="z-index: 95000;">
+    <div class="super-deal-box" id="super-deal-box">
+        <span class="close-btn" onclick="closeSuperDealModal()">&times;</span>
+        <div class="super-deal-badge-top" id="sd-badge" style="background:#f59e0b; color:#000;">
+            <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span id="sd-type-label">SPECIAL OFFER</span>
+        </div>
+        <h2 id="sd-title" style="font-size: 2.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: -1px; margin-bottom: 0.4rem;">Scratch &amp; Save</h2>
+        <p id="sd-subtitle" style="color: var(--text-muted); font-weight: 700; font-size: 0.95rem; margin-bottom: 0.75rem;">Rub the silver foil below with your mouse or finger to reveal your discount.</p>
+
+        <!-- Interactive Scratch Stage -->
+        <div id="sd-scratch-container">
+            <div class="scratch-stage" id="sd-scratch-wrap">
+                <div class="scratch-prize-under">
+                    <div style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color:#78350f;">Your Discount</div>
+                    <div id="sd-discount-big" style="font-size: 3rem; font-weight: 900; color: #dc2626; line-height: 1.1; margin: 4px 0;">25% OFF</div>
+                    <div style="font-size: 0.8rem; font-weight: 800; color:#451a03;">Single-use account discount</div>
+                </div>
+                <canvas id="scratch-canvas" width="420" height="185"></canvas>
+            </div>
+            <div class="scratch-progress-bar-wrap" id="sd-progress-wrap">
+                <div class="scratch-progress-bar-fill" id="sd-progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Direct Flash Stage -->
+        <div id="sd-flash-wrap" style="display:none; padding: 1.8rem 1rem; margin: 1.2rem 0; border: 3px solid var(--border-dark); background: var(--bg-subtle);">
+            <div style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted);">Limited Time Store Offer</div>
+            <div id="sd-flash-big" style="font-size: 3.2rem; font-weight: 900; color: var(--accent-blue); line-height: 1.1; margin: 0.4rem 0;">20% OFF</div>
+            <div style="font-size: 0.85rem; font-weight: 800;">Saves to your account for checkout</div>
+        </div>
+
+        <button class="btn-primary" id="sd-claim-btn" style="width: 100%; background: var(--success); color: #000; border-color: #000; font-size: 1rem;" onclick="claimCurrentSuperDeal()">
+            Claim Discount to Account
+        </button>
+    </div>
+</div>
+
+<!-- SAVED ACCOUNT DISCOUNTS MODAL -->
+<div id="discounts-modal" class="modal-overlay" style="z-index: 94000;">
+    <div class="modal-content" style="max-width: 560px;">
+        <span class="close-btn" onclick="closeDiscountsModal()">&times;</span>
+        <h2 style="font-size: 2.2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing:-1px;">My Saved Discounts</h2>
+        <p style="color: var(--text-muted); font-weight: 700; font-size: 0.92rem; margin-bottom: 1.5rem;">
+            Select one saved discount to apply to your order. Each claimed discount can only be used once per account.
+        </p>
+        <div id="discounts-wallet-list"></div>
+    </div>
+</div>
+
 <!-- WIX/GUTENBERG VISUAL BUILDER UI -->
 <div id="builder-ui-top">
     <div style="font-weight: 800; font-size: 15px; display:flex; align-items:center; gap:10px;">
-        <span style="background:var(--accent-blue); color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; text-transform:uppercase; letter-spacing:1px;">PRO BUILDER</span>
-        <span>Visual Studio</span>
-        <span style="font-size:12px; color:#64748b; font-weight:600; margin-left:8px;">(Click ANY text, image, or block to scale &amp; edit, or drag blocks onto page)</span>
+        <span style="background:var(--accent-blue); color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; text-transform:uppercase; letter-spacing:1px;">BUILDER</span>
+        <span>Visual Editor</span>
+        <span style="font-size:12px; color:#64748b; font-weight:600; margin-left:8px;">(Click any text, image, or block to resize &amp; edit, or drag blocks onto the page)</span>
     </div>
     <div style="display:flex; gap:8px;">
         <button class="builder-btn" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;" onclick="cancelBuildMode()">Discard &amp; Cancel</button>
@@ -514,7 +879,7 @@
 
     <div id="builder-tab-block">
         <div id="no-block-selected" style="text-align:center; color:#94a3b8; padding: 30px 10px; font-size:13px; font-weight:600; line-height:1.5;">
-            Click ANY block, image, logo, or text on the page to scale it, edit its content, or customize its layout.
+            Click any block, image, logo, or text on the page to resize it, edit its content, or customize its layout.
         </div>
 
         <!-- Dynamic Block Inspector -->
@@ -606,6 +971,21 @@
     </div>
 
     <div id="builder-tab-site" style="display:none;">
+        <label class="builder-label" style="font-size:0.8rem;">Holiday &amp; Seasonal Ambient Theme</label>
+        <select id="builder-ambient-select" class="builder-input" onchange="setAmbientTheme(this.value)">
+            <option value="none">None (Standard Store)</option>
+            <option value="halloween">Halloween (Corner Cobwebs &amp; Dangling Spiders)</option>
+            <option value="christmas">Christmas (Pine Garlands, Baubles &amp; Snow)</option>
+            <option value="stpatricks">St. Patrick's Day (Shamrock Garlands &amp; Clovers)</option>
+            <option value="newyear">New Year's (Star Garlands &amp; Gold Shimmer)</option>
+            <option value="birthday">Birthday (Party Bunting &amp; Rising Balloons)</option>
+            <option value="easter">Easter / Spring (Floral Vines &amp; Blossoms)</option>
+            <option value="valentines">Valentine's Day (Corner Hearts &amp; Petals)</option>
+            <option value="autumn">Autumn (Oak Corner Vines &amp; Falling Leaves)</option>
+            <option value="summer">Summer (Warm Sunbeams &amp; Palm Accents)</option>
+            <option value="bonfire">Bonfire Night (Corner Glow &amp; Rising Embers)</option>
+        </select>
+
         <label class="builder-label" style="font-size:0.8rem;">Main Background</label>
         <input type="color" id="theme-bg" class="input-field" style="height:40px; padding:2px; margin-bottom:15px;" oninput="updateGlobalTheme()">
 
@@ -620,7 +1000,7 @@
 
         <button type="button" class="builder-btn" style="width:100%; justify-content:center; background:#334155; margin-top:10px;" onclick="unhideAllStaticElements()">Restore Any Hidden Elements</button>
 
-        <p style="font-size:12px; color:#64748b; margin-top:16px;">* Click "Publish to Cloud" in the top bar to save all changes permanently for all visitors.</p>
+        <p style="font-size:12px; color:#64748b; margin-top:16px;">* Click "Publish to Cloud" in the top bar to save all changes permanently.</p>
     </div>
 </div>
 <!-- END BUILDER UI -->
@@ -628,7 +1008,7 @@
 <!-- Top Announcement -->
 <div class="promo-banner" id="editable-promo-banner">
     <p id="promo-text" class="editable-text">
-        FREE LOCAL DELIVERY (BB5 AREA) &nbsp;&nbsp;|&nbsp;&nbsp; USE CODE <strong>WELCOME15</strong> AT CHECKOUT FOR 15% OFF! &nbsp;&nbsp;|&nbsp;&nbsp; CUSTOM ORDERS NOW OPEN
+        FREE LOCAL DELIVERY (BB5 AREA) &nbsp;&nbsp;|&nbsp;&nbsp; NEW ACCOUNTS GET <strong>15% WELCOME DEAL</strong> ON ALL ITEMS &nbsp;&nbsp;|&nbsp;&nbsp; CUSTOM ORDERS FROM £3.50
     </p>
 </div>
 
@@ -672,19 +1052,20 @@
 <div id="account-modal" class="modal-overlay">
     <div class="modal-content" id="modal-login-view">
         <span class="close-btn" onclick="closeAccountModal()">&times;</span>
-        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing:-1px;">Access</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem; font-weight: 600;">Log in to track orders, save details, and access checkout.</p>
+        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing:-1px;">Sign In</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem; font-weight: 600;">Sign in or register a new account to get <strong>15% off</strong> your first order and save claimed discounts to your account.</p>
         <form onsubmit="processLogin(event)">
             <input type="email" id="login-email" class="input-field" placeholder="Email Address" required style="margin-bottom: 1rem;">
             <input type="password" id="login-pass" class="input-field" placeholder="Password" style="margin-bottom: 1.5rem;">
-            <button type="submit" class="btn-primary" style="width: 100%;">Secure Login / Register</button>
+            <button type="submit" class="btn-primary" style="width: 100%;">Sign In / Register</button>
         </form>
     </div>
 
     <div class="modal-content" id="modal-profile-view" style="display: none; max-width: 700px;">
         <span class="close-btn" onclick="closeAccountModal()">&times;</span>
         <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing:-1px;">My Account</h2>
-        <p id="profile-email" style="color: var(--accent-blue); font-weight: 900; margin-bottom: 2rem;"></p>
+        <p id="profile-email" style="color: var(--accent-blue); font-weight: 900; margin-bottom: 0.5rem;"></p>
+        <div id="profile-welcome-status" style="margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 900; text-transform: uppercase;"></div>
         
         <div class="tabs">
             <button class="tab-btn active" onclick="switchSettingsTab('profile')">Profile &amp; Prefs</button>
@@ -726,7 +1107,7 @@
             <div class="form-group">
                 <label>Rating (1-5)</label>
                 <select id="review-stars" class="select-field" required>
-                    <option value="5">5 / 5 Stars - Outstanding</option>
+                    <option value="5">5 / 5 Stars - Excellent</option>
                     <option value="4">4 / 5 Stars - Very Good</option>
                     <option value="3">3 / 5 Stars - Good</option>
                     <option value="2">2 / 5 Stars - Fair</option>
@@ -735,7 +1116,7 @@
             </div>
             <div class="form-group">
                 <label>Your Review</label>
-                <textarea id="review-text" class="input-field" rows="4" required placeholder="Tell others about your experience!"></textarea>
+                <textarea id="review-text" class="input-field" rows="4" required placeholder="Write your review here..."></textarea>
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; background: var(--success); color:#000;">Submit Review</button>
         </form>
@@ -767,11 +1148,11 @@
         </div>
         <div class="form-group" style="display:flex; align-items:center; gap:10px; background:var(--bg-subtle); padding:12px; border:2px solid var(--border-dark);">
             <input type="checkbox" id="admin-limited-toggle" style="width:20px; height:20px;" onchange="if(this.checked) document.getElementById('admin-badge').value='LIMITED EDITION'; else if(document.getElementById('admin-badge').value==='LIMITED EDITION') document.getElementById('admin-badge').value='NEW';">
-            <label style="margin:0; font-weight:900; color:var(--text-main); cursor:pointer;" for="admin-limited-toggle">Limited Edition Tag Active</label>
+            <label style="margin:0; font-weight:900; color:var(--text-main); cursor:pointer;" for="admin-limited-toggle">Limited Edition Tag</label>
         </div>
         <div class="form-group">
-            <label>Product Image URL (Leave empty to keep current)</label>
-            <input type="text" id="admin-image" class="input-field" placeholder="Image URL">
+            <label>Product Image URLs (One per line or comma-separated for Multiple Images)</label>
+            <textarea id="admin-image" class="input-field" rows="3" placeholder="https://image1.jpg&#10;https://image2.jpg"></textarea>
         </div>
         <div style="display:flex; gap:1rem;">
             <div class="form-group" style="flex:1;"><label>Price (£)</label><input type="number" id="admin-price" step="0.01" class="input-field"></div>
@@ -794,7 +1175,7 @@
 <div id="checkout-modal" class="modal-overlay">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('checkout-modal').style.display='none'">&times;</span>
-        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; letter-spacing:-1px;">Shipping Details</h2>
+        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; letter-spacing:-1px;">Delivery Details</h2>
         <form id="real-checkout-form">
             <div class="form-group">
                 <label>Full Name</label>
@@ -805,11 +1186,17 @@
                 <input type="email" id="checkout-email" class="input-field" required placeholder="jane@example.com">
             </div>
             <div class="form-group">
-                <label>Full Shipping Address (UK ONLY - Type to search)</label>
+                <label>Full Delivery Address (UK Only)</label>
                 <div class="input-wrapper">
                     <textarea id="checkout-address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..." oninput="calculateCheckoutModalTotals()"></textarea>
                     <ul id="checkout-address-list" class="autocomplete-list"></ul>
                 </div>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <button type="button" class="btn-primary" style="width:100%; background:var(--bg-subtle); color:var(--text-main); padding:0.75rem;" onclick="openDiscountsModal('cart')">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span id="checkout-discounts-btn-label">Discounts</span>
+                </button>
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; background: var(--accent-blue); color:#fff;" id="checkout-submit-btn">
                 <span>Review Order</span>
@@ -823,10 +1210,10 @@
 <div id="checkout-confirm-modal" class="modal-overlay">
     <div class="modal-content">
         <span class="close-btn" onclick="document.getElementById('checkout-confirm-modal').style.display='none'">&times;</span>
-        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; letter-spacing:-1px;">Verify Details</h2>
+        <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; letter-spacing:-1px;">Confirm Order</h2>
         
         <div class="notice-box" style="border-color: var(--accent-blue); background: var(--bg-main);">
-            <strong style="color: var(--text-main); font-size:1.1rem;">Confirm Your Shipping Address:</strong><br>
+            <strong style="color: var(--text-main); font-size:1.1rem;">Delivery Address:</strong><br>
             <span id="confirm-address-display" style="color: var(--text-muted); font-weight: 600; text-transform:none; display:block; margin-top:6px;"></span>
             <button onclick="document.getElementById('checkout-confirm-modal').style.display='none'; if(window.currentCheckoutMode !== 'custom') document.getElementById('checkout-modal').style.display='flex';" style="background:none; border:none; color:var(--accent-blue); cursor:pointer; font-weight:900; text-transform:uppercase; margin-top:8px; font-size:0.8rem; display:inline-flex; align-items:center; gap:4px;">
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -837,18 +1224,18 @@
         <div class="notice-box">
             <span>
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Order Timeline &amp; Payment:
+                Payment Information:
             </span><br>
-            Once submitted, please check your email within 1 week (typically 1-3 days). We will send you a secure payment link and invoice. Your order ships after payment is received.<br><br>
+            Once your order is placed, please check your email within 1 week (usually 1-3 days) for your payment link. Orders are dispatched once payment is completed.<br><br>
             <span>
                 <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                Delivery Guarantee &amp; Issue Return Policy:
+                Delivery &amp; Returns:
             </span><br>
-            If an item is damaged during delivery, a full refund will be issued and a 50% discount coupon will be rewarded. You may request a return, though all return requests require admin approval and are not automatically guaranteed. By placing this order, you accept these terms.
+            If an item arrives damaged, a full refund and a 50% discount code will be provided. General return requests are reviewed by our team and are not always guaranteed.
         </div>
         
         <button class="btn-primary" id="final-confirm-order-btn" style="width: 100%; background: var(--success); border-color: var(--text-main); color:#000;" onclick="processFinalCheckout()">
-            <span>Confirm &amp; Place Order</span>
+            <span>Place Order</span>
             <div class="spinner" id="checkout-spinner"></div>
         </button>
         <div id="checkout-error" style="color: var(--danger); font-weight: 900; text-align: center; margin-top: 1rem;"></div>
@@ -858,11 +1245,11 @@
 <!-- Success Modal -->
 <div id="success-modal" class="modal-overlay">
     <div class="modal-content" style="text-align: center; border-color: var(--success);">
-        <h2 style="font-size: 3rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; color: var(--success);">Order Placed!</h2>
-        <p style="font-size: 1.2rem; font-weight: 800; margin-bottom: 2rem;">
-            Thank you! Please check your email within 1 week (typically 1-3 days) for your invoice and secure payment details.
+        <h2 style="font-size: 3rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; color: var(--success);">Order Sent</h2>
+        <p style="font-size: 1.15rem; font-weight: 800; margin-bottom: 2rem;">
+            Thank you for your order. Please check your email within 1 week (usually 1-3 days) for your payment link.
         </p>
-        <button class="btn-primary" onclick="document.getElementById('success-modal').style.display='none';" style="background: var(--dark-surface);">Continue Shopping</button>
+        <button class="btn-primary" onclick="document.getElementById('success-modal').style.display='none';" style="background: var(--dark-surface);">Back to Shop</button>
     </div>
 </div>
 
@@ -873,7 +1260,7 @@
         <h1 id="hero-title" class="editable-text">Magic Loom<br>Creations</h1>
         <p id="hero-sub" class="editable-text" style="background: rgba(0,0,0,0.65); display: inline-block; padding: 6px 18px; border-radius: 4px; font-weight: 800;">Bracelets, 3D prints &amp; more</p>
         <br><br>
-        <button class="btn-primary editable-text" style="font-size: 1.1rem; padding: 1.2rem 3rem;" onclick="if(!window.isBuildMode) switchPage('items')" id="hero-btn-text">Explore The Drop</button>
+        <button class="btn-primary editable-text" style="font-size: 1.1rem; padding: 1.2rem 3rem;" onclick="if(!window.isBuildMode) switchPage('items')" id="hero-btn-text">Shop Now</button>
     </div>
 </div>
 
@@ -884,18 +1271,18 @@
         <div id="home-blocks-top" class="builder-drop-zone" data-zone="homeTop" ondragover="handleDragOver(event, 'homeTop')" ondrop="handleDrop(event, 'homeTop')" ondragleave="handleDragLeave(event, this)"></div>
 
         <!-- Categories -->
-        <div class="section-tag editable-text" id="tag-home-cat">Explore</div>
-        <div class="section-header editable-text" id="hdr-home-cat">Shop By Category</div>
+        <div class="section-tag editable-text" id="tag-home-cat">Browse</div>
+        <div class="section-header editable-text" id="hdr-home-cat">Categories</div>
         <div class="category-grid" id="category-grid"></div>
 
         <!-- Bundles -->
-        <div class="section-tag editable-text" id="tag-home-bun">Value Packs</div>
+        <div class="section-tag editable-text" id="tag-home-bun">Sets &amp; Kits</div>
         <div class="section-header editable-text" id="hdr-home-bun">Featured Bundles</div>
         <div class="product-grid" id="bundle-grid"></div>
 
         <!-- Trending -->
-        <div class="section-tag editable-text" id="tag-home-trend">Fan Favorites</div>
-        <div class="section-header editable-text" id="hdr-home-trend">Trending Now</div>
+        <div class="section-tag editable-text" id="tag-home-trend">Popular</div>
+        <div class="section-header editable-text" id="hdr-home-trend">Featured Products</div>
         <div class="product-grid" id="featured-grid"></div>
 
         <!-- Custom Drag & Drop Zone Bottom -->
@@ -905,13 +1292,13 @@
         <div style="margin-top: 5rem; padding: 3rem; background: var(--bg-subtle); border: 2px solid var(--border-dark); border-radius: 8px;">
             <h3 style="font-size: 2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; display:flex; align-items:center; gap:10px;">
                 <svg class="svg-icon" style="color:var(--accent-blue); width:28px; height:28px;" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z"/></svg>
-                <span class="editable-text" id="feedback-heading-text">Got an Idea or Feedback?</span>
+                <span class="editable-text" id="feedback-heading-text">Suggestions &amp; Feedback</span>
             </h3>
-            <p class="editable-text" id="feedback-sub-text" style="color: var(--text-muted); margin-bottom: 2rem; font-weight: 600;">Want a specific loom design, new color, or a custom 3D print added to the store? Let us know!</p>
+            <p class="editable-text" id="feedback-sub-text" style="color: var(--text-muted); margin-bottom: 2rem; font-weight: 600;">Have an idea for a new bracelet pattern, colour combo, or 3D print? Send us a message below.</p>
             <form onsubmit="submitFeedback(event)">
-                <div class="form-group"><input type="text" id="feedback-title" class="input-field" placeholder="Idea Title" required></div>
-                <div class="form-group"><textarea id="feedback-desc" class="input-field" rows="3" placeholder="Describe your idea..." required></textarea></div>
-                <button type="submit" class="btn-primary" style="background: var(--text-main); color: var(--bg-main);">Submit Feedback</button>
+                <div class="form-group"><input type="text" id="feedback-title" class="input-field" placeholder="Subject / Idea Title" required></div>
+                <div class="form-group"><textarea id="feedback-desc" class="input-field" rows="3" placeholder="Tell us what you would like to see..." required></textarea></div>
+                <button type="submit" class="btn-primary" style="background: var(--text-main); color: var(--bg-main);">Send Suggestion</button>
             </form>
         </div>
     </section>
@@ -922,30 +1309,30 @@
             <img id="exner-logo" class="editable-image" src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300&q=80" style="max-width: 100%; height: auto; border-radius: 8px; border: 3px solid var(--accent-blue); margin-bottom: 1rem; display: inline-block;">
             <br>
             <h1 id="exner-title" class="editable-text" style="font-size: 4rem; font-weight: 900; text-transform: uppercase; letter-spacing:-2px; display:inline-block;">Exner Creations</h1>
-            <p id="exner-desc" class="editable-text" style="color: var(--text-muted); font-size: 1.2rem; font-weight: 600; max-width: 600px; margin: 0.5rem auto 0;">Precision 3D printed accessories, figures, and models crafted directly by our partner studio.</p>
+            <p id="exner-desc" class="editable-text" style="color: var(--text-muted); font-size: 1.2rem; font-weight: 600; max-width: 600px; margin: 0.5rem auto 0;">3D printed models, figures, and custom accessories.</p>
         </div>
 
         <!-- DRAG AND DROP ZONE -->
         <div id="exner-container" class="builder-drop-zone" data-zone="exner" ondragover="handleDragOver(event, 'exner')" ondrop="handleDrop(event, 'exner')" ondragleave="handleDragLeave(event, this)"></div>
 
-        <div class="section-tag editable-text" id="exner-tag-feat" style="color: var(--accent-blue); margin-top: 3rem;">Highlights</div>
+        <div class="section-tag editable-text" id="exner-tag-feat" style="color: var(--accent-blue); margin-top: 3rem;">Featured</div>
         <div class="section-header editable-text" id="exner-hdr-feat" style="color: var(--text-main);">Featured Prints</div>
         <div class="product-grid" id="exner-featured-grid"></div>
 
-        <div class="section-tag editable-text" id="exner-tag-all" style="color: var(--accent-blue); margin-top:3rem;">Full Collection</div>
+        <div class="section-tag editable-text" id="exner-tag-all" style="color: var(--accent-blue); margin-top:3rem;">Catalogue</div>
         <div class="section-header editable-text" id="exner-hdr-all" style="color: var(--text-main);">All Products</div>
         <div class="product-grid" id="exner-all-grid"></div>
     </section>
 
     <!-- Catalog Section -->
     <section id="page-items" class="page-section">
-        <div class="section-tag editable-text" id="tag-shop-all">Full Collection</div>
-        <div class="section-header editable-text" id="hdr-shop-all">Store Catalog</div>
+        <div class="section-tag editable-text" id="tag-shop-all">All Items</div>
+        <div class="section-header editable-text" id="hdr-shop-all">Shop</div>
         
         <div id="shop-blocks-top" class="builder-drop-zone" data-zone="shop" ondragover="handleDragOver(event, 'shop')" ondrop="handleDrop(event, 'shop')" ondragleave="handleDragLeave(event, this)"></div>
 
         <div style="margin-bottom: 2rem; position: relative;">
-            <input type="text" id="shop-search" class="input-field" placeholder="Search for bands, kits, 3D prints, or bundles..." oninput="renderCatalog()">
+            <input type="text" id="shop-search" class="input-field" placeholder="Search bracelets, kits, 3D prints, or bundles..." oninput="renderCatalog()">
         </div>
         <div id="catalog-container"></div>
     </section>
@@ -953,19 +1340,29 @@
     <!-- Product Detail Section -->
     <section id="page-product" class="page-section">
         <button onclick="switchPage('items')" style="background: var(--bg-main); border: 2px solid transparent; font-weight: 900; text-transform: uppercase; cursor: pointer; color: var(--text-muted); margin-bottom: 2rem; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1rem; padding: 5px;">
-            &larr; Back to Catalog
+            &larr; Back to Shop
         </button>
         <button id="admin-btn" onclick="openAdminModal()">
             <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Edit Product Data
+            Edit Product
         </button>
 
         <div class="product-detail-layout">
-            <div class="product-gallery"><img id="detail-img" src="" alt="Product Image"></div>
+            <div class="product-gallery">
+                <div class="product-gallery-main-wrap">
+                    <button type="button" class="gallery-nav-btn prev" id="detail-prev-img" onclick="stepDetailImage(-1)" style="display:none;">&larr;</button>
+                    <img id="detail-img" src="" alt="Product Image">
+                    <button type="button" class="gallery-nav-btn next" id="detail-next-img" onclick="stepDetailImage(1)" style="display:none;">&rarr;</button>
+                </div>
+                <div class="detail-thumbs-row" id="detail-thumbs-row"></div>
+            </div>
             <div class="product-meta">
-                <span id="detail-badge" class="discount-tag" style="position: relative; top: 0; left: 0; margin-bottom: 1rem; display: inline-block;"></span>
+                <div id="detail-badges-wrap" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem; align-items:center;">
+                    <span id="detail-badge" class="discount-tag" style="position: relative; top: 0; left: 0;"></span>
+                    <span id="detail-welcome-badge" class="welcome-deal-tag" style="display:none;">WELCOME DEAL -15%</span>
+                </div>
                 <h1 id="detail-title" style="background: var(--bg-main); display: inline-block;">Product Title</h1>
-                <div class="price" id="detail-price" style="background: var(--bg-main); display: inline-block; padding: 0 5px;">£0.00</div><br>
+                <div class="price" id="detail-price" style="background: var(--bg-main); padding: 0 5px;">£0.00</div><br>
                 <div id="detail-stock-status" class="stock-status">In Stock: 0</div>
                 
                 <div class="rating-display" id="detail-rating-display" style="margin-bottom: 1rem; font-weight: 900; color: var(--star-color); display:flex; align-items:center; gap:6px;"></div>
@@ -973,7 +1370,7 @@
                 <p class="desc" id="detail-desc">Description</p>
                 
                 <div class="color-selector">
-                    <h4>Select Color Variant</h4>
+                    <h4>Select Colour</h4>
                     <div class="swatches" id="detail-swatches"></div>
                 </div>
                 
@@ -990,22 +1387,22 @@
         <div class="reviews-section">
             <h3 style="font-size: 2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 2rem;">Customer Reviews</h3>
             <div id="detail-reviews-list">
-                <p style="color: var(--text-muted); font-weight: 600;">No reviews yet. Purchase this item to leave a review!</p>
+                <p style="color: var(--text-muted); font-weight: 600;">No reviews yet. Order this item to leave a review.</p>
             </div>
         </div>
     </section>
 
     <!-- Contact / Custom Order Section -->
     <section id="page-contact" class="page-section">
-        <div class="section-tag editable-text" id="tag-custom-ord">Made For You</div>
-        <div class="section-header editable-text" id="hdr-custom-ord">Request Custom Order</div>
+        <div class="section-tag editable-text" id="tag-custom-ord">Custom Made</div>
+        <div class="section-header editable-text" id="hdr-custom-ord">Custom Order Request</div>
         
         <div id="contact-blocks-top" class="builder-drop-zone" data-zone="contact" ondragover="handleDragOver(event, 'contact')" ondrop="handleDrop(event, 'contact')" ondragleave="handleDragLeave(event, this)"></div>
 
         <div style="background: var(--bg-main); padding: 3rem; border: 2px solid var(--border-dark); max-width: 800px; margin: 0 auto; box-shadow: 10px 10px 0px var(--text-main);">
             <p id="custom-ord-intro" class="editable-text" style="margin-bottom: 1rem; color: var(--text-main); font-weight: 700; font-size: 1.1rem;">
-                Want a specific color combo or a personalized 3D print? Fill out the form below. 
-                Minimum for a custom order is <strong>£5.00</strong> upwards. You will receive your actual price once you receive your email.
+                Want a specific colour combination or a custom 3D print? Fill out the form below. 
+                Custom orders start from <strong>£3.50</strong> upwards. You will receive your exact price by email once we review your request.
             </p>
 
             <form id="custom-order-form" onsubmit="initiateCustomCheckout(event)">
@@ -1013,26 +1410,32 @@
                 <div class="form-group"><label>Email Address</label><input type="email" id="custom-email" name="email" class="input-field" required></div>
                 
                 <div class="form-group">
-                    <label>Full Shipping Address (UK ONLY)</label>
+                    <label>Full Delivery Address (UK Only)</label>
                     <div class="input-wrapper">
                         <textarea id="custom-address" name="address" class="input-field" rows="3" required placeholder="Start typing your UK address or postcode..."></textarea>
                         <ul id="custom-address-list" class="autocomplete-list"></ul>
                     </div>
                 </div>
 
-                <div class="form-group"><label>Order Details / Vision</label><textarea id="custom-message" name="message" class="input-field" rows="5" required placeholder="I'd like a double-fishtail bracelet in Neon Green and Black..."></textarea></div>
+                <div class="form-group"><label>What would you like us to make?</label><textarea id="custom-message" name="message" class="input-field" rows="5" required placeholder="Describe the colours, style, or 3D print you want..."></textarea></div>
                 
                 <div class="form-group">
-                    <label>Promo Code</label>
+                    <label>Discounts &amp; Promo Code</label>
+                    <div style="margin-bottom: 0.75rem;">
+                        <button type="button" class="btn-primary" style="width:100%; background:var(--bg-subtle); color:var(--text-main); padding:0.75rem;" onclick="openDiscountsModal('custom')">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span id="custom-discounts-btn-label">Discounts</span>
+                        </button>
+                    </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="custom-promo" class="input-field" placeholder="Enter code" style="background: var(--bg-subtle);">
+                        <input type="text" id="custom-promo" class="input-field" placeholder="Enter promo code" style="background: var(--bg-subtle);">
                         <button type="button" class="btn-primary" style="padding: 0 1rem;" onclick="applyCustomPromo()">Apply</button>
                     </div>
                     <div id="custom-promo-msg" style="font-size: 0.85rem; margin-top: 0.5rem; font-weight: 900; text-transform: uppercase;"></div>
                 </div>
 
                 <div style="font-size: 1.5rem; font-weight: 900; margin-bottom: 1.5rem; border-top: 2px solid var(--border-light); padding-top: 1rem;">
-                    Base Estimate: <span id="custom-order-total">£5.00+</span>
+                    Starting Price: <span id="custom-order-total">£3.50+</span>
                 </div>
 
                 <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background: var(--accent-blue); color: #fff; border-color: var(--border-dark);">
@@ -1045,13 +1448,22 @@
 
     <!-- Basket Section -->
     <section id="page-basket" class="page-section">
-        <div class="section-tag editable-text" id="tag-cart-top">Secure Checkout</div>
+        <div class="section-tag editable-text" id="tag-cart-top">Checkout</div>
         <div class="section-header editable-text" id="hdr-cart-top">Your Cart</div>
         
         <div class="basket-layout">
             <div id="basket-items-container"></div>
             <div class="basket-summary">
-                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 2rem; letter-spacing: -1px;">Order Summary</h3>
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1.5rem; letter-spacing: -1px;">Order Summary</h3>
+
+                <!-- Saved Account Discounts Button -->
+                <div style="margin-bottom: 1.2rem;">
+                    <button type="button" class="btn-primary" style="width: 100%; background: var(--accent-blue); color: #fff; padding: 0.85rem 1rem;" onclick="openDiscountsModal('cart')">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span id="cart-discounts-btn-label">Discounts</span>
+                    </button>
+                </div>
+
                 <div class="form-group">
                     <label>Promo Code</label>
                     <div style="display: flex; gap: 0.5rem;">
@@ -1062,7 +1474,7 @@
                 </div>
                 <hr style="border: none; border-top: 2px solid var(--border-dark); margin: 2rem 0;">
                 <div class="summary-row"><span style="color: var(--text-muted);">Subtotal</span><span id="summary-subtotal">£0.00</span></div>
-                <div class="summary-row" style="color: var(--success);"><span>Discount</span><span id="summary-discount">-£0.00</span></div>
+                <div class="summary-row" style="color: var(--success);"><span>Extra Discount</span><span id="summary-discount">-£0.00</span></div>
                 <div class="summary-row"><span style="color: var(--text-muted);">Delivery</span><span id="summary-delivery">Calculated at next step</span></div>
                 <div style="display: flex; justify-content: space-between; font-size: 2.2rem; font-weight: 900; margin: 1.5rem 0 2rem 0; color: var(--text-main); letter-spacing:-1px;">
                     <span>Total</span><span id="summary-total">£0.00</span>
@@ -1095,9 +1507,94 @@
 
         <div id="admin-error-box" style="display:none; background: var(--bg-subtle); border: 2px dashed var(--danger); color: var(--danger); padding: 1rem; margin-bottom: 2rem; font-weight: 900;"></div>
 
+        <!-- Site Traffic, Time Spent & Customer Basket Insights -->
+        <div class="admin-panel-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem;">
+                <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase;">Site Traffic, Time &amp; Basket Insights</h3>
+                <div style="display:flex; gap:0.5rem;">
+                    <button type="button" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.75rem;" onclick="refreshAdminAnalytics()">Refresh</button>
+                    <button type="button" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.75rem; background:var(--danger); color:#fff; border-color:var(--border-dark);" onclick="clearAdminAnalytics()">Reset Stats</button>
+                </div>
+            </div>
+            <p style="color:var(--text-muted); font-weight:600; margin-bottom:1.5rem;">
+                See how many people have entered the site, how long they browse, how many have items in their baskets right now, and which products and colours are most popular so you know what to make.
+            </p>
+
+            <div class="analytics-stats-grid" id="admin-analytics-metrics"></div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                <div style="background:var(--bg-main); border:2px solid var(--border-dark); padding:1.2rem;">
+                    <h4 style="font-size:1rem; font-weight:900; text-transform:uppercase; margin-bottom:0.8rem; color:var(--accent-blue);">What People Have in Baskets &amp; Like Most</h4>
+                    <div id="admin-analytics-popular-items"></div>
+                </div>
+                <div style="background:var(--bg-main); border:2px solid var(--border-dark); padding:1.2rem;">
+                    <h4 style="font-size:1rem; font-weight:900; text-transform:uppercase; margin-bottom:0.8rem; color:var(--accent-blue);">Recent Visitors, Time on Site &amp; Baskets</h4>
+                    <div id="admin-analytics-visitors-list" style="max-height:320px; overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Holiday & Seasonal Ambient Theme Selector -->
+        <div class="admin-panel-card">
+            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem;">Holiday &amp; Seasonal Ambient Themes</h3>
+            <p style="color:var(--text-muted); font-weight:600; margin-bottom:1.2rem;">Adds corner decorations and gentle edge effects (like dangling spiders &amp; cobwebs for Halloween, pine garlands &amp; snow for Christmas, shamrocks for St. Patrick's Day, balloons for Birthdays) while keeping your site colours intact.</p>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
+                <select id="admin-ambient-select" class="select-field" style="flex:2; min-width:240px;" onchange="setAmbientTheme(this.value, true)">
+                    <option value="none">None (Standard Clean Store)</option>
+                    <option value="halloween">Halloween (Corner Cobwebs &amp; Dangling Spiders)</option>
+                    <option value="christmas">Christmas (Pine Garlands, Baubles &amp; Gentle Snow)</option>
+                    <option value="stpatricks">St. Patrick's Day (Shamrock Garlands &amp; Clovers)</option>
+                    <option value="newyear">New Year's (Star Garlands &amp; Gold Shimmer)</option>
+                    <option value="birthday">Birthday (Party Bunting &amp; Rising Balloons)</option>
+                    <option value="easter">Easter / Spring (Floral Vines &amp; Blossoms)</option>
+                    <option value="valentines">Valentine's Day (Corner Hearts &amp; Petals)</option>
+                    <option value="autumn">Autumn (Oak Corner Vines &amp; Falling Leaves)</option>
+                    <option value="summer">Summer (Warm Sunbeams &amp; Palm Accents)</option>
+                    <option value="bonfire">Bonfire Night (Corner Glow &amp; Rising Embers)</option>
+                </select>
+                <button type="button" class="btn-primary" style="flex:1;" onclick="spawnAmbientBurst()">Test Theme Effect</button>
+            </div>
+        </div>
+
+        <!-- Super Deal & Scratch Card Designer -->
+        <div class="admin-panel-card">
+            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem;">Scratch Cards &amp; Super Deals</h3>
+            <p style="color:var(--text-muted); font-weight:600; margin-bottom:1.2rem;">Popups appear immediately on a visitor's very first visit, and then repeat on the timer you set below. Claimed discounts save to the customer's account for single-use at checkout.</p>
+            
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:1.5rem; background:var(--bg-main); padding:1rem; border:2px solid var(--border-light);">
+                <div style="flex:1; min-width:180px;">
+                    <label style="font-weight:900; font-size:0.75rem; text-transform:uppercase; display:block; margin-bottom:6px;">Popup Timer (Seconds, 0 = Off)</label>
+                    <input type="number" id="sd-interval-input" class="input-field" min="0" max="3600" value="90">
+                </div>
+                <button type="button" class="btn-primary" style="background:var(--dark-surface); color:var(--bg-main);" onclick="saveSuperDealFrequency()">Save Timer</button>
+                <button type="button" class="btn-primary" style="background:var(--accent-blue); color:#fff;" onclick="triggerRandomSuperDeal()">Preview Popup</button>
+            </div>
+
+            <form onsubmit="adminAddSuperDeal(event)" style="border-top:2px dashed var(--border-light); padding-top:1.5rem;">
+                <h4 style="text-transform:uppercase; font-weight:900; margin-bottom:1rem;">Add New Deal Popup</h4>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+                    <select id="sd-new-type" class="select-field" style="flex:1; min-width:180px;" required>
+                        <option value="scratch">Interactive Scratch Card</option>
+                        <option value="flash">Flash Deal Popup</option>
+                    </select>
+                    <input type="text" id="sd-new-title" class="input-field" placeholder="Title (e.g. Scratch & Save or Super Deal)" required style="flex:2; min-width:200px;">
+                    <input type="number" id="sd-new-disc" class="input-field" placeholder="Discount % (e.g. 20)" required min="1" max="90" style="flex:1; min-width:130px;">
+                </div>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+                    <input type="text" id="sd-new-sub" class="input-field" placeholder="Short description (e.g. Rub the foil to see your discount)" required style="flex:3; min-width:220px;">
+                    <div style="flex:1; min-width:120px;">
+                        <input type="color" id="sd-new-color" class="input-field" value="#f59e0b" style="height:54px; padding:4px;">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="background:var(--success); color:#000; width:100%;">Add Deal</button>
+            </form>
+
+            <div id="admin-superdeals-list" style="margin-top:1.5rem;"></div>
+        </div>
+
         <!-- Manage Sales Event -->
         <div class="admin-panel-card">
-            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Sales Event</h3>
+            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Storewide Sale</h3>
             <form onsubmit="adminStartSale(event, 'main')">
                 <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap: wrap;">
                     <input type="text" id="sale-name" class="input-field" placeholder="Sale Name (e.g. Winter Sale)" required style="flex:1; min-width:200px;">
@@ -1114,7 +1611,7 @@
                     </div>
                 </div>
                 <div style="display:flex; gap:1rem; flex-wrap: wrap;">
-                    <button type="submit" class="btn-primary" style="flex:1; background: var(--success); color:#000;">Start Storewide Sale</button>
+                    <button type="submit" class="btn-primary" style="flex:1; background: var(--success); color:#000;">Start Sale</button>
                     <button type="button" class="btn-primary" style="flex:1; background: var(--danger); color:#fff;" onclick="adminEndSale('main')">End Current Sale</button>
                 </div>
             </form>
@@ -1124,7 +1621,7 @@
         <div class="admin-panel-card">
             <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Manage Promo Codes</h3>
             <form style="display:flex; gap:1rem; flex-wrap: wrap;" onsubmit="adminAddPromo(event, 'main')">
-                <input type="text" id="new-promo-code" class="input-field" placeholder="Code (e.g. WELCOME15)" required style="text-transform:uppercase; flex:2; min-width:150px;">
+                <input type="text" id="new-promo-code" class="input-field" placeholder="Code (e.g. MEGALOOM)" required style="text-transform:uppercase; flex:2; min-width:150px;">
                 <input type="number" id="new-promo-disc" class="input-field" placeholder="Discount %" required min="1" max="100" style="flex:1; min-width:100px;">
                 <button type="submit" class="btn-primary" style="background: #000; color:#fff;">Add Code</button>
             </form>
@@ -1141,9 +1638,9 @@
                     <input type="number" id="add-price" step="0.01" class="input-field" placeholder="Price (£)" required style="flex:1; min-width:100px;">
                     <input type="number" id="add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1; min-width:100px;">
                 </div>
-                <input type="text" id="add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
+                <textarea id="add-image" class="input-field" rows="3" placeholder="Image URLs (Enter 1 or more URLs — one per line or comma-separated for multiple images)" required style="margin-bottom:1rem;"></textarea>
                 <textarea id="add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
-                <input type="text" id="add-colors" class="input-field" placeholder="Colors (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
+                <input type="text" id="add-colors" class="input-field" placeholder="Colours (e.g. Neon|#ff007f, Blue|#0000ff)" required style="margin-bottom:1rem;">
                 <div class="form-group" style="display:flex; align-items:center; gap:10px;">
                     <input type="checkbox" id="add-limited" style="width:20px; height:20px;">
                     <label style="margin:0; font-weight:800; color:var(--text-main); cursor:pointer;" for="add-limited">Mark as Limited Edition</label>
@@ -1195,7 +1692,7 @@
 
         <!-- Manage Exner Sales Event -->
         <div class="admin-panel-card">
-            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Exner Sales Event</h3>
+            <h3 style="font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Exner Sale</h3>
             <form onsubmit="adminStartSale(event, 'exner')">
                 <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap: wrap;">
                     <input type="text" id="exner-sale-name" class="input-field" placeholder="Sale Name" required style="flex:1; min-width:200px;">
@@ -1239,9 +1736,9 @@
                     <input type="number" id="exner-add-price" step="0.01" class="input-field" placeholder="Price (£)" required style="flex:1; min-width:100px;">
                     <input type="number" id="exner-add-stock" class="input-field" placeholder="Stock Qty" required style="flex:1; min-width:100px;">
                 </div>
-                <input type="text" id="exner-add-image" class="input-field" placeholder="Image URL" required style="margin-bottom:1rem;">
+                <textarea id="exner-add-image" class="input-field" rows="3" placeholder="Image URLs (Enter 1 or more URLs — one per line or comma-separated for multiple images)" required style="margin-bottom:1rem;"></textarea>
                 <textarea id="exner-add-desc" class="input-field" rows="2" placeholder="Description" required style="margin-bottom:1rem;"></textarea>
-                <input type="text" id="exner-add-colors" class="input-field" placeholder="Colors (e.g. Matte Black|#27272a)" required style="margin-bottom:1rem;">
+                <input type="text" id="exner-add-colors" class="input-field" placeholder="Colours (e.g. Matte Black|#27272a)" required style="margin-bottom:1rem;">
                 <div style="display:flex; gap:2rem; flex-wrap:wrap; margin-bottom:1rem;">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <input type="checkbox" id="exner-add-featured" style="width:20px; height:20px;">
@@ -1275,11 +1772,11 @@
     <div class="footer-container">
         <div class="footer-col">
             <h3 class="editable-text" id="footer-title">Magic Loom Creations</h3>
-            <p class="editable-text" id="footer-sub">Bespoke handmade woven loom bracelets, DIY kits, and precision 3D printed models crafted with care in Oswaldtwistle (BB5).</p>
+            <p class="editable-text" id="footer-sub">Handmade loom bracelets, kits, and 3D printed models made in Oswaldtwistle (BB5).</p>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:1rem;">
                 <span class="footer-badge">
                     <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    UK Shipping Only
+                    UK Delivery Only
                 </span>
                 <span class="footer-badge">
                     <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1289,29 +1786,29 @@
         </div>
 
         <div class="footer-col">
-            <h4 class="editable-text" id="footer-nav-hdr">Navigation</h4>
+            <h4 class="editable-text" id="footer-nav-hdr">Pages</h4>
             <ul class="footer-links">
                 <li><a onclick="switchPage('home')">Home</a></li>
-                <li><a onclick="switchPage('items')">Store Catalog</a></li>
+                <li><a onclick="switchPage('items')">Shop</a></li>
                 <li><a onclick="switchPage('exner')">Exner Creations 3D</a></li>
                 <li><a onclick="switchPage('contact')">Custom Orders</a></li>
-                <li><a onclick="switchPage('basket')">Shopping Cart</a></li>
+                <li><a onclick="switchPage('basket')">Cart</a></li>
             </ul>
         </div>
 
         <div class="footer-col">
-            <h4 class="editable-text" id="footer-care-hdr">Account &amp; Care</h4>
+            <h4 class="editable-text" id="footer-care-hdr">Account &amp; Info</h4>
             <ul class="footer-links">
                 <li><a onclick="openAccountModal()">My Account / Sign In</a></li>
                 <li><a onclick="openAccountModal(); switchSettingsTab('orders');">Order History &amp; Reviews</a></li>
-                <li><a onclick="switchPage('contact')">Request Bespoke Print</a></li>
-                <li><a onclick="customAlert('To request a return for a damaged item, please reply directly to your order invoice email. Note: Returns require admin approval and are not automatically guaranteed.')">Issue Return Policy</a></li>
+                <li><a onclick="switchPage('contact')">Custom Order Form</a></li>
+                <li><a onclick="customAlert('If an item arrives damaged, please reply to your order email. Please note that general return requests require approval and are not always guaranteed.')">Returns Policy</a></li>
             </ul>
         </div>
 
         <div class="footer-col">
-            <h4 class="editable-text" id="footer-pol-hdr">Delivery &amp; Guarantee</h4>
-            <p class="editable-text" id="footer-policy-text">All orders are reviewed and invoiced via email within 1-3 days. Standard UK delivery is £5.00 (Free for BB5 postcodes). Damaged items qualify for a full refund + 50% discount coupon.</p>
+            <h4 class="editable-text" id="footer-pol-hdr">Delivery &amp; Orders</h4>
+            <p class="editable-text" id="footer-policy-text">Orders are confirmed and invoiced by email within 1-3 days. UK delivery is £5.00, or free for BB5 postcodes. If your item is damaged in transit, we issue a full refund and a 50% discount code.</p>
         </div>
     </div>
 
@@ -1323,7 +1820,7 @@
 
 <script>
     // ==========================================
-    // CUSTOM SVG ICON HELPER
+    // CUSTOM SVG ICON & HOLIDAY GRAPHICS HELPER
     // ==========================================
     const SVG_ICONS = {
         starFilled: '<svg class="svg-icon fill-current" style="color:var(--star-color);" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
@@ -1331,7 +1828,23 @@
         check: '<svg class="svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
         close: '<svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
         grip: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>',
-        sparkle: '<svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
+        sparkle: '<svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+        photos: '<svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+        spider: '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="13" r="4"/><circle cx="12" cy="8" r="2.2"/><path d="M8 11C5 9 3 6 2 4M8 13C4 12 2 12 1 13M8 15C5 16 3 18 2 20M9 16.5C7 19 6 21 6 23M16 11c3-2 5-5 6-7M16 13c4-1 6-1 7 0M16 15c3 1 5 3 6 5M15 16.5c2 2.5 3 4.5 3 6.5" fill="none"/></svg>',
+        cornerWeb: '<svg viewBox="0 0 100 100" width="100%" height="100%" stroke="currentColor" stroke-width="1.3" fill="none"><line x1="0" y1="0" x2="100" y2="0"/><line x1="0" y1="0" x2="0" y2="100"/><line x1="0" y1="0" x2="100" y2="100"/><line x1="0" y1="0" x2="100" y2="45"/><line x1="0" y1="0" x2="45" y2="100"/><path d="M 25 0 Q 22 12 18 18 Q 12 22 0 25"/><path d="M 50 0 Q 43 24 35 35 Q 24 43 0 50"/><path d="M 75 0 Q 65 36 53 53 Q 36 65 0 75"/><path d="M 98 0 Q 84 48 68 68 Q 48 84 0 98"/></svg>',
+        cornerChristmas: '<svg viewBox="0 0 100 100" width="100%" height="100%" fill="none"><path d="M0 0 Q 40 20 100 0 L 0 0 L 0 80 Q 20 40 0 0" stroke="#15803d" stroke-width="8"/><line x1="28" y1="8" x2="28" y2="42" stroke="currentColor" stroke-width="1.5"/><circle cx="28" cy="48" r="7" fill="#dc2626"/><line x1="58" y1="6" x2="58" y2="28" stroke="currentColor" stroke-width="1.5"/><circle cx="58" cy="34" r="6" fill="#eab308"/></svg>',
+        cornerShamrock: '<svg viewBox="0 0 100 100" width="100%" height="100%" fill="none" stroke="#16a34a" stroke-width="2"><path d="M0 0 Q 45 25 90 0"/><circle cx="25" cy="18" r="7" fill="#16a34a"/><circle cx="55" cy="15" r="6" fill="#16a34a"/><circle cx="15" cy="42" r="6" fill="#16a34a"/></svg>',
+        cornerNewYear: '<svg viewBox="0 0 100 100" width="100%" height="100%" fill="none"><line x1="20" y1="0" x2="20" y2="55" stroke="#eab308" stroke-width="1.5"/><polygon points="20,50 23,58 31,58 25,63 27,71 20,66 13,71 15,63 9,58 17,58" fill="#eab308"/><line x1="52" y1="0" x2="52" y2="35" stroke="#94a3b8" stroke-width="1.5"/><polygon points="52,30 54,36 60,36 55,40 57,46 52,42 47,46 49,40 44,36 50,36" fill="#94a3b8"/></svg>',
+        cornerBunting: '<svg viewBox="0 0 100 100" width="100%" height="100%" fill="none"><path d="M0 5 Q 50 28 100 0" stroke="currentColor" stroke-width="1.5"/><polygon points="10,8 28,13 18,32" fill="#ec4899"/><polygon points="32,14 50,16 40,35" fill="#3b82f6"/><polygon points="55,16 73,12 65,33" fill="#eab308"/><polygon points="76,11 94,4 87,26" fill="#10b981"/></svg>',
+        cornerVines: '<svg viewBox="0 0 100 100" width="100%" height="100%" fill="none" stroke="#10b981" stroke-width="2"><path d="M0 0 Q 30 35 15 75"/><path d="M0 0 Q 45 20 80 12"/><circle cx="22" cy="28" r="5" fill="#f472b6" stroke="none"/><circle cx="48" cy="16" r="5" fill="#c084fc" stroke="none"/><circle cx="16" cy="56" r="4" fill="#fde047" stroke="none"/></svg>',
+        snowflake: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg>',
+        clover: '<svg viewBox="0 0 24 24" width="22" height="22" fill="#16a34a"><circle cx="9" cy="9" r="4.5"/><circle cx="15" cy="9" r="4.5"/><circle cx="9" cy="15" r="4.5"/><circle cx="15" cy="15" r="4.5"/><path d="M12 15 L14 22" stroke="#15803d" stroke-width="2"/></svg>',
+        goldStar: '<svg viewBox="0 0 24 24" width="20" height="20" fill="#eab308"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>',
+        balloon: '<svg viewBox="0 0 24 32" width="24" height="32" fill="none"><ellipse cx="12" cy="11" rx="8" ry="10" fill="#ec4899"/><path d="M12 21 Q 10 26 13 31" stroke="#71717a" stroke-width="1.2"/></svg>',
+        easterEgg: '<svg viewBox="0 0 24 28" width="20" height="24"><path d="M12 2 C6 2 3 11 3 18 C3 23 7 26 12 26 C17 26 21 23 21 18 C21 11 18 2 12 2 Z" fill="#c084fc"/><path d="M4 14 L8 11 L12 14 L16 11 L20 14" stroke="#fde047" stroke-width="2" fill="none"/></svg>',
+        heartSvg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="#f43f5e"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+        autumnLeaf: '<svg viewBox="0 0 24 24" width="22" height="22" fill="#ea580c"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>',
+        emberSpark: '<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="4" fill="#f97316"/><circle cx="8" cy="8" r="2" fill="#fef08a"/></svg>'
     };
 
     // ==========================================
@@ -1411,12 +1924,17 @@
     ];
 
     const defaultProducts = [
-        { id: 1, store: 'main', category: "Bracelets", name: "Rainbow Burst Bracelet", price: 3.50, stock: 15, badge: "BEST SELLER", description: "Vibrant custom starburst pattern handmade with premium, durable bands.", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=800&q=80", colors: [{name: 'Neon Mix', hex: '#ff007f'}, {name: 'Ocean Vibe', hex: '#0ea5e9'}] },
-        { id: 2, store: 'main', category: "Bracelets", name: "Classic Fishtail Band", price: 2.00, stock: 50, badge: "CLASSIC", description: "The iconic loom band bracelet tailored perfectly to your wrist size.", image: "https://images.unsplash.com/photo-1596767817457-36e78dbf8c47?w=800&q=80", colors: [{name: 'Classic Black', hex: '#000000'}, {name: 'Cherry Red', hex: '#ef4444'}] },
-        { id: 3, store: 'main', category: "Bracelets", name: "Dragon Scale Cuff", price: 4.50, stock: 8, badge: "LIMITED EDITION", description: "A wider, intricate weave design utilizing hundreds of bands.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Midnight', hex: '#1e1b4b'}, {name: 'Ruby', hex: '#9f1239'}] },
-        { id: 4, store: 'main', category: "Kits & DIY", name: "Mega Loom Refill Kit", price: 15.00, stock: 2, badge: "SAVE 20%", description: "Get 5,000 premium quality, latex-free bands in assorted colors.", image: "https://images.unsplash.com/photo-1606041011872-596590462582?w=800&q=80", colors: [{name: 'Mixed Assortment', hex: '#a855f7'}] },
-        { id: 6, store: 'main', category: "Bundles", name: "Starter Loom Kit Bundle", price: 10.00, stock: 5, badge: "BUNDLE", description: "Everything you need to start looming.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Starter Mix', hex: '#eab308'}] },
-        { id: 5, store: 'exner', category: "Figures", name: "Exner Articulated Titan", price: 12.00, stock: 4, badge: "FEATURED", description: "Fully articulated 3D printed companion figure.", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80", colors: [{name: 'Matte Black', hex: '#27272a'}] }
+        { id: 1, store: 'main', category: "Bracelets", name: "Rainbow Burst Bracelet", price: 3.50, stock: 15, badge: "BEST SELLER", description: "Handmade starburst pattern loom band bracelet.", image: "https://images.unsplash.com/photo-1611591475140-420371072d62?w=800&q=80||https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Neon Mix', hex: '#ff007f'}, {name: 'Ocean Blue', hex: '#0ea5e9'}] },
+        { id: 2, store: 'main', category: "Bracelets", name: "Classic Fishtail Band", price: 2.00, stock: 50, badge: "CLASSIC", description: "Classic fishtail weave loom bracelet.", image: "https://images.unsplash.com/photo-1596767817457-36e78dbf8c47?w=800&q=80", colors: [{name: 'Black', hex: '#000000'}, {name: 'Red', hex: '#ef4444'}] },
+        { id: 3, store: 'main', category: "Bracelets", name: "Dragon Scale Cuff", price: 4.50, stock: 8, badge: "LIMITED EDITION", description: "Wide dragon scale weave cuff made with durable bands.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80", colors: [{name: 'Midnight', hex: '#1e1b4b'}, {name: 'Ruby', hex: '#9f1239'}] },
+        { id: 4, store: 'main', category: "Kits & DIY", name: "Mega Loom Refill Kit", price: 15.00, stock: 2, badge: "SAVE 20%", description: "5,000 assorted latex-free bands with clips and hook tool.", image: "https://images.unsplash.com/photo-1606041011872-596590462582?w=800&q=80", colors: [{name: 'Mixed Pack', hex: '#a855f7'}] },
+        { id: 6, store: 'main', category: "Bundles", name: "Starter Loom Kit Bundle", price: 10.00, stock: 5, badge: "BUNDLE", description: "Starter set with 3 bracelets and a mini hook kit.", image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&q=80||https://images.unsplash.com/photo-1606041011872-596590462582?w=800&q=80", colors: [{name: 'Starter Mix', hex: '#eab308'}] },
+        { id: 5, store: 'exner', category: "Figures", name: "Exner Articulated Figure", price: 12.00, stock: 4, badge: "FEATURED", description: "Poseable 3D printed desk figure.", image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80", colors: [{name: 'Matte Black', hex: '#27272a'}] }
+    ];
+
+    const defaultSuperDeals = [
+        { id: 101, type: 'scratch', title: 'Scratch & Save', subtitle: 'Rub the silver foil below to reveal your discount.', discount: 20, color: '#f59e0b' },
+        { id: 102, type: 'flash', title: 'Super Deal', subtitle: 'Claim this discount to your account for checkout.', discount: 25, color: '#7c3aed' }
     ];
 
     let categories = [];
@@ -1425,17 +1943,36 @@
     let user = JSON.parse(localStorage.getItem('loom_user_v2')) || null;
     
     let activeProduct = null;
+    let activeProductImages = [];
+    let activeProductImgIdx = 0;
     let activeColor = null;
     let activeDiscount = 0;
     let appliedPromoCode = null;
+    let appliedSavedDiscountId = null;
+    let customAppliedSavedDiscountId = null;
+    let pendingClaimDeal = null;
+    let currentPopupDeal = null;
+    let discountsModalContext = 'cart';
+    let superDealTimerId = null;
+    let ambientTimerId = null;
     let currentFilter = 'All';
     window.currentCheckoutMode = 'cart';
 
     let storeSettings = {
         activeSale: null, 
         exnerSale: null,
-        promos: { 'WELCOME15': 15, 'MEGALOOM': 20 },
+        promos: { 'MEGALOOM': 20 },
         exnerPromos: { 'EXNER10': 10 },
+        superDeals: defaultSuperDeals,
+        superDealIntervalSec: 90,
+        ambientTheme: 'none',
+        usedWelcomeEmails: [],
+        userAccounts: {},
+        analytics: {
+            totalVisits: 0,
+            productViews: {},
+            visitors: {}
+        },
         reviews: [],
         feedback: [],
         exnerBlocks: [],
@@ -1446,6 +1983,93 @@
         categoriesList: null,
         orderMeta: {}
     };
+
+    // --- Multi-Image Helper Functions ---
+    function parseImageList(rawStr) {
+        if (!rawStr) return ['https://images.unsplash.com/photo-1611591475140-420371072d62?w=800&q=80'];
+        let parts = String(rawStr)
+            .split(/\|\||\r?\n|,(?=\s*https?:\/\/)/i)
+            .map(s => s.trim())
+            .filter(Boolean);
+        return parts.length > 0 ? parts : [String(rawStr).trim()];
+    }
+
+    function formatImageListForStorage(rawInput) {
+        return parseImageList(rawInput).join('||');
+    }
+
+    function getPrimaryImage(prod) {
+        return parseImageList(prod.image)[0];
+    }
+
+    // --- Account Wallet & Welcome Deal Eligibility ---
+    function getAccountRecord(email) {
+        if (!email) return null;
+        const key = email.toLowerCase().trim();
+        if (!storeSettings.userAccounts) storeSettings.userAccounts = {};
+        if (!storeSettings.userAccounts[key]) {
+            storeSettings.userAccounts[key] = {
+                savedDiscounts: [],
+                usedCodes: [],
+                hasPlacedOrder: (storeSettings.usedWelcomeEmails || []).includes(key)
+            };
+        }
+        return storeSettings.userAccounts[key];
+    }
+
+    function syncUserWithAccountRecord() {
+        if (!user || !user.email) return;
+        const acc = getAccountRecord(user.email);
+        if (!acc) return;
+
+        // Merge savedDiscounts and usedCodes between local user and cloud storeSettings.userAccounts
+        const localSaved = user.savedDiscounts || [];
+        const cloudSaved = acc.savedDiscounts || [];
+        const mergedMap = {};
+        [...cloudSaved, ...localSaved].forEach(d => {
+            if (d && d.codeId) {
+                if (!mergedMap[d.codeId] || d.used) {
+                    mergedMap[d.codeId] = d;
+                }
+            }
+        });
+        acc.savedDiscounts = Object.values(mergedMap);
+        user.savedDiscounts = acc.savedDiscounts;
+
+        const mergedUsed = Array.from(new Set([...(acc.usedCodes || []), ...(user.usedCodes || [])]));
+        acc.usedCodes = mergedUsed;
+        user.usedCodes = mergedUsed;
+
+        if (user.hasPlacedOrder || (storeSettings.usedWelcomeEmails || []).includes(user.email.toLowerCase())) {
+            acc.hasPlacedOrder = true;
+            user.hasPlacedOrder = true;
+        }
+        localStorage.setItem('loom_user_v2', JSON.stringify(user));
+    }
+
+    function getAvailableAccountDiscounts() {
+        if (!user || !user.email) return [];
+        syncUserWithAccountRecord();
+        const usedSet = new Set(user.usedCodes || []);
+        return (user.savedDiscounts || []).filter(d => !d.used && !usedSet.has(d.codeId));
+    }
+
+    function updateDiscountsButtonsUI() {
+        const availCount = user ? getAvailableAccountDiscounts().length : 0;
+        const labelText = user ? `Discounts (${availCount} Saved)` : `Discounts (Sign In)`;
+        ['cart-discounts-btn-label', 'checkout-discounts-btn-label', 'custom-discounts-btn-label'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = labelText;
+        });
+    }
+
+    function isNewAccountWelcomeEligible() {
+        if (!user || !user.email) return false;
+        if (user.hasPlacedOrder) return false;
+        const usedList = storeSettings.usedWelcomeEmails || [];
+        if (usedList.includes(user.email.toLowerCase())) return false;
+        return true;
+    }
 
     // --- Schema-Safe Serialization for Supabase 'products' table ---
     function serializeProductForDB(prod) {
@@ -1492,6 +2116,7 @@
         if (!_supabase) {
             products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
             categories = storeSettings.categoriesList || JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
+            cleanupLegacyWelcome15();
             return;
         }
         try {
@@ -1524,20 +2149,50 @@
             products = JSON.parse(localStorage.getItem('loom_products_v2')) || defaultProducts;
         }
 
+        cleanupLegacyWelcome15();
+
         if (!storeSettings.pageBlocks) {
             storeSettings.pageBlocks = { homeTop: [], homeBottom: [], shop: [], exner: [], contact: [] };
         }
-        if (!storeSettings.elementStyles) {
-            storeSettings.elementStyles = {};
+        if (!storeSettings.elementStyles) storeSettings.elementStyles = {};
+        if (!storeSettings.superDeals || storeSettings.superDeals.length === 0) {
+            storeSettings.superDeals = defaultSuperDeals;
         }
-        if (storeSettings.exnerBlocks && storeSettings.exnerBlocks.length > 0 && (!storeSettings.pageBlocks.exner || storeSettings.pageBlocks.exner.length === 0)) {
-            storeSettings.pageBlocks.exner = storeSettings.exnerBlocks;
+        if (storeSettings.superDealIntervalSec === undefined) {
+            storeSettings.superDealIntervalSec = 90;
         }
+        if (!storeSettings.usedWelcomeEmails) {
+            storeSettings.usedWelcomeEmails = [];
+        }
+        if (!storeSettings.userAccounts) {
+            storeSettings.userAccounts = {};
+        }
+        if (!storeSettings.analytics) {
+            storeSettings.analytics = { totalVisits: 0, productViews: {}, visitors: {} };
+        }
+        if (!storeSettings.analytics.visitors) storeSettings.analytics.visitors = {};
+        if (!storeSettings.analytics.productViews) storeSettings.analytics.productViews = {};
 
         categories = storeSettings.categoriesList || JSON.parse(localStorage.getItem('loom_categories_v2')) || defaultCategories;
     }
 
+    function cleanupLegacyWelcome15() {
+        if (storeSettings.promos && storeSettings.promos['WELCOME15']) {
+            delete storeSettings.promos['WELCOME15'];
+        }
+        if (storeSettings.textContent && storeSettings.textContent['promo-text'] && storeSettings.textContent['promo-text'].includes('WELCOME15')) {
+            delete storeSettings.textContent['promo-text'];
+        }
+        if (storeSettings.superDeals) {
+            storeSettings.superDeals.forEach(d => {
+                if (d.title) d.title = d.title.replace(/UNLOCKED!?/gi, '').trim() || 'Super Deal';
+                if (d.subtitle) d.subtitle = d.subtitle.replace(/lucky flash drop!?/gi, 'special offer');
+            });
+        }
+    }
+
     async function saveGlobalSettings() {
+        cleanupLegacyWelcome15();
         storeSettings.categoriesList = categories;
         localStorage.setItem('loom_settings_v2', JSON.stringify(storeSettings));
         localStorage.setItem('loom_categories_v2', JSON.stringify(categories));
@@ -1560,26 +2215,266 @@
         }
     }
 
-    // --- Pricing Helpers ---
+    // ==========================================
+    // SITE TRAFFIC, TIME SPENT & BASKET ANALYTICS
+    // ==========================================
+    let currentVisitorId = localStorage.getItem('loom_visitor_id_v2');
+    if (!currentVisitorId) {
+        currentVisitorId = 'vis_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        localStorage.setItem('loom_visitor_id_v2', currentVisitorId);
+    }
+
+    function formatDurationSeconds(totalSec) {
+        const s = Math.max(0, Math.floor(Number(totalSec) || 0));
+        const hrs = Math.floor(s / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const secs = s % 60;
+        if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+        if (mins > 0) return `${mins}m ${secs}s`;
+        return `${secs}s`;
+    }
+
+    function ensureVisitorAnalyticsRecord() {
+        if (!storeSettings.analytics) {
+            storeSettings.analytics = { totalVisits: 0, productViews: {}, visitors: {} };
+        }
+        if (!storeSettings.analytics.visitors) storeSettings.analytics.visitors = {};
+        if (!storeSettings.analytics.productViews) storeSettings.analytics.productViews = {};
+
+        let v = storeSettings.analytics.visitors[currentVisitorId];
+        if (!v) {
+            v = {
+                id: currentVisitorId,
+                email: user ? user.email : 'Guest',
+                name: user ? (user.name || user.email.split('@')[0]) : 'Guest Visitor',
+                visitsCount: 0,
+                totalSeconds: 0,
+                lastSeen: new Date().toLocaleString(),
+                lastSeenTs: Date.now(),
+                cartItems: []
+            };
+            storeSettings.analytics.visitors[currentVisitorId] = v;
+        }
+        if (user && user.email) {
+            v.email = user.email;
+            v.name = user.name || user.email.split('@')[0];
+        }
+        v.lastSeen = new Date().toLocaleString();
+        v.lastSeenTs = Date.now();
+        v.cartItems = (cart || []).map(i => ({
+            id: i.id,
+            name: i.name,
+            qty: i.qty,
+            color: i.color ? i.color.name : 'Standard',
+            price: i.price,
+            store: i.store || 'main'
+        }));
+
+        // Keep max 80 most recent visitors so storeSettings stays fast & compact
+        const keys = Object.keys(storeSettings.analytics.visitors);
+        if (keys.length > 80) {
+            keys.sort((a, b) => (storeSettings.analytics.visitors[b].lastSeenTs || 0) - (storeSettings.analytics.visitors[a].lastSeenTs || 0));
+            keys.slice(80).forEach(k => delete storeSettings.analytics.visitors[k]);
+        }
+        return v;
+    }
+
+    async function initVisitorSessionAnalytics() {
+        const v = ensureVisitorAnalyticsRecord();
+        storeSettings.analytics.totalVisits = (storeSettings.analytics.totalVisits || 0) + 1;
+        v.visitsCount = (v.visitsCount || 0) + 1;
+        await saveGlobalSettings();
+
+        // Track active browsing time every 15 seconds, sync to cloud every 60 seconds
+        let ticks = 0;
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                const rec = ensureVisitorAnalyticsRecord();
+                rec.totalSeconds = (rec.totalSeconds || 0) + 15;
+                ticks++;
+                localStorage.setItem('loom_settings_v2', JSON.stringify(storeSettings));
+                if (ticks % 4 === 0) {
+                    saveGlobalSettings();
+                }
+                if (document.getElementById('page-admin')?.classList.contains('active')) {
+                    renderAdminAnalyticsUI();
+                }
+            }
+        }, 15000);
+    }
+
+    async function syncVisitorCartToAnalytics() {
+        ensureVisitorAnalyticsRecord();
+        await saveGlobalSettings();
+        if (document.getElementById('page-admin')?.classList.contains('active')) {
+            renderAdminAnalyticsUI();
+        }
+    }
+
+    function recordProductViewAnalytics(prod) {
+        if (!prod || !prod.name) return;
+        ensureVisitorAnalyticsRecord();
+        if (!storeSettings.analytics.productViews) storeSettings.analytics.productViews = {};
+        storeSettings.analytics.productViews[prod.name] = (storeSettings.analytics.productViews[prod.name] || 0) + 1;
+        localStorage.setItem('loom_settings_v2', JSON.stringify(storeSettings));
+    }
+
+    async function refreshAdminAnalytics() {
+        await loadCloudData();
+        ensureVisitorAnalyticsRecord();
+        renderAdminAnalyticsUI();
+    }
+
+    async function clearAdminAnalytics() {
+        if (await customConfirm("Reset all visitor, time, and basket analytics?")) {
+            storeSettings.analytics = { totalVisits: 1, productViews: {}, visitors: {} };
+            ensureVisitorAnalyticsRecord();
+            await saveGlobalSettings();
+            renderAdminAnalyticsUI();
+        }
+    }
+
+    function renderAdminAnalyticsUI() {
+        const metricsEl = document.getElementById('admin-analytics-metrics');
+        const popEl = document.getElementById('admin-analytics-popular-items');
+        const visListEl = document.getElementById('admin-analytics-visitors-list');
+        if (!metricsEl || !popEl || !visListEl) return;
+
+        const analytics = storeSettings.analytics || { totalVisits: 0, productViews: {}, visitors: {} };
+        const visitorsArr = Object.values(analytics.visitors || {}).sort((a, b) => (b.lastSeenTs || 0) - (a.lastSeenTs || 0));
+        const uniqueVisitorsCount = visitorsArr.length;
+        const totalVisits = Math.max(uniqueVisitorsCount, analytics.totalVisits || 0);
+
+        const totalTimeSec = visitorsArr.reduce((acc, v) => acc + (v.totalSeconds || 0), 0);
+        const avgTimeSec = uniqueVisitorsCount > 0 ? Math.round(totalTimeSec / uniqueVisitorsCount) : 0;
+
+        // Calculate basket stats
+        let visitorsWithBaskets = 0;
+        let totalItemsInBaskets = 0;
+        let totalBasketValue = 0;
+        const itemDemandMap = {};
+
+        visitorsArr.forEach(v => {
+            const cItems = v.cartItems || [];
+            if (cItems.length > 0) {
+                visitorsWithBaskets++;
+                cItems.forEach(item => {
+                    const qty = Number(item.qty) || 1;
+                    totalItemsInBaskets += qty;
+                    totalBasketValue += (Number(item.price) || 0) * qty;
+                    const key = `${item.name} (${item.color || 'Standard'})`;
+                    if (!itemDemandMap[key]) {
+                        itemDemandMap[key] = { name: item.name, color: item.color || 'Standard', qty: 0, basketsCount: 0 };
+                    }
+                    itemDemandMap[key].qty += qty;
+                    itemDemandMap[key].basketsCount += 1;
+                });
+            }
+        });
+
+        metricsEl.innerHTML = `
+            <div class="analytics-stat-box">
+                <div class="stat-label">Total Site Entries</div>
+                <div class="stat-value">${totalVisits}</div>
+                <div class="stat-sub">${uniqueVisitorsCount} Unique Visitors</div>
+            </div>
+            <div class="analytics-stat-box">
+                <div class="stat-label">Avg Time on Site</div>
+                <div class="stat-value">${formatDurationSeconds(avgTimeSec)}</div>
+                <div class="stat-sub">Total: ${formatDurationSeconds(totalTimeSec)}</div>
+            </div>
+            <div class="analytics-stat-box">
+                <div class="stat-label">People with Baskets</div>
+                <div class="stat-value">${visitorsWithBaskets}</div>
+                <div class="stat-sub">${totalItemsInBaskets} items (£${totalBasketValue.toFixed(2)} value)</div>
+            </div>
+        `;
+
+        // Render Popular / In-Basket Items so admin knows what to make
+        const demandList = Object.values(itemDemandMap).sort((a, b) => b.qty - a.qty);
+        const viewsEntries = Object.entries(analytics.productViews || {}).sort((a, b) => b[1] - a[1]);
+
+        let popHTML = '';
+        if (demandList.length > 0) {
+            popHTML += `<div style="font-size:0.75rem; font-weight:900; text-transform:uppercase; color:var(--text-muted); margin-bottom:0.5rem;">Items Currently in Baskets (What to Make):</div>`;
+            demandList.forEach(d => {
+                popHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-light); font-size:0.88rem; font-weight:700;">
+                        <span><strong>${d.name}</strong> — <span style="color:var(--accent-blue);">${d.color}</span></span>
+                        <span style="background:var(--success); color:#000; padding:2px 8px; font-size:0.75rem; font-weight:900;">${d.qty} in ${d.basketsCount} basket${d.basketsCount > 1 ? 's' : ''}</span>
+                    </div>
+                `;
+            });
+        } else {
+            popHTML += `<p style="color:var(--text-muted); font-size:0.88rem; font-weight:600; margin-bottom:1rem;">No items sitting in customer baskets right now.</p>`;
+        }
+
+        if (viewsEntries.length > 0) {
+            popHTML += `<div style="font-size:0.75rem; font-weight:900; text-transform:uppercase; color:var(--text-muted); margin:1rem 0 0.5rem;">Most Viewed Products (What People Like):</div>`;
+            viewsEntries.slice(0, 8).forEach(([prodName, views]) => {
+                popHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--border-light); font-size:0.85rem; font-weight:700;">
+                        <span>${prodName}</span>
+                        <span style="color:var(--accent-blue); font-weight:900;">${views} view${views > 1 ? 's' : ''}</span>
+                    </div>
+                `;
+            });
+        }
+        popEl.innerHTML = popHTML;
+
+        // Render Visitors & Their Baskets
+        if (visitorsArr.length === 0) {
+            visListEl.innerHTML = `<p style="color:var(--text-muted); font-size:0.88rem;">No visitor sessions recorded yet.</p>`;
+        } else {
+            visListEl.innerHTML = visitorsArr.map(v => {
+                const cItems = v.cartItems || [];
+                const basketDesc = cItems.length > 0
+                    ? cItems.map(i => `${i.qty}x ${i.name} (${i.color})`).join(', ')
+                    : 'Empty basket';
+                const badgeColor = cItems.length > 0 ? 'var(--success)' : 'var(--border-light)';
+                const badgeText = cItems.length > 0 ? '#000' : 'var(--text-muted)';
+                return `
+                    <div style="padding:10px; border:1px solid var(--border-light); background:var(--bg-subtle); margin-bottom:8px; font-size:0.85rem;">
+                        <div style="display:flex; justify-content:space-between; font-weight:900;">
+                            <span>${v.name || 'Visitor'} <small style="color:var(--text-muted);">(${v.email || 'Guest'})</small></span>
+                            <span style="color:var(--accent-blue);">${formatDurationSeconds(v.totalSeconds || 0)}</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; margin:3px 0 6px;">
+                            Visits: ${v.visitsCount || 1} &nbsp;|&nbsp; Last active: ${v.lastSeen || 'Just now'}
+                        </div>
+                        <div style="background:${badgeColor}; color:${badgeText}; padding:4px 8px; font-weight:800; font-size:0.78rem;">
+                            Basket: ${basketDesc}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // --- Pricing Helpers (Stacks Sale + 15% New Account Welcome Deal) ---
     function getActiveSaleObject(storeType) {
         return storeType === 'exner' ? storeSettings.exnerSale : storeSettings.activeSale;
     }
 
     function getEffectivePrice(basePrice, storeType = 'main') {
+        let price = Number(basePrice) || 0;
         let sale = getActiveSaleObject(storeType);
         if (sale && new Date() < new Date(sale.endTime)) {
-            return basePrice * (1 - sale.discount / 100);
+            price = price * (1 - sale.discount / 100);
         }
-        return basePrice;
+        if (isNewAccountWelcomeEligible()) {
+            price = price * 0.85;
+        }
+        return price;
     }
 
     function getPriceHTML(basePrice, storeType = 'main') {
-        let sale = getActiveSaleObject(storeType);
-        if (sale && new Date() < new Date(sale.endTime)) {
-            let salePrice = basePrice * (1 - sale.discount / 100);
-            return `<span style="text-decoration:line-through; color:var(--text-muted); font-size:0.8em; margin-right:5px;">£${Number(basePrice).toFixed(2)}</span><span style="color:var(--danger);">£${Number(salePrice).toFixed(2)}</span>`;
+        const orig = Number(basePrice) || 0;
+        const eff = getEffectivePrice(orig, storeType);
+        if (eff < orig - 0.005) {
+            return `<span style="text-decoration:line-through; color:var(--text-muted); font-size:0.82em;">£${orig.toFixed(2)}</span><span style="color:var(--danger); font-weight:900;">£${eff.toFixed(2)}</span>`;
         }
-        return `£${Number(basePrice).toFixed(2)}`;
+        return `£${orig.toFixed(2)}`;
     }
 
     function updateSaleBanner() {
@@ -1600,7 +2495,7 @@
                 let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 let mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 
-                banner.innerHTML = `${SVG_ICONS.sparkle} ${sale.name} — ${sale.discount}% OFF! ENDS IN: ${days}d ${hours}h ${mins}m ${SVG_ICONS.sparkle}`;
+                banner.innerHTML = `${SVG_ICONS.sparkle} ${sale.name} — ${sale.discount}% OFF EVERYTHING | ENDS IN: ${days}d ${hours}h ${mins}m ${SVG_ICONS.sparkle}`;
             } else {
                 banner.style.display = 'none';
                 if(isExner) storeSettings.exnerSale = null; else storeSettings.activeSale = null;
@@ -1613,6 +2508,523 @@
     }
 
     setInterval(updateSaleBanner, 60000);
+
+    // ==========================================
+    // HOLIDAY & SEASONAL AMBIENT FX ENGINE
+    // ==========================================
+    function applyAmbientTheme() {
+        const layer = document.getElementById('ambient-fx-layer');
+        if (!layer) return;
+        layer.innerHTML = '';
+        if (ambientTimerId) clearInterval(ambientTimerId);
+
+        const theme = storeSettings.ambientTheme || 'none';
+        const adminSel = document.getElementById('admin-ambient-select');
+        const builderSel = document.getElementById('builder-ambient-select');
+        if (adminSel) adminSel.value = theme;
+        if (builderSel) builderSel.value = theme;
+
+        if (theme === 'none') return;
+
+        let cornerGraphic = '';
+        if (theme === 'halloween') cornerGraphic = SVG_ICONS.cornerWeb;
+        else if (theme === 'christmas') cornerGraphic = SVG_ICONS.cornerChristmas;
+        else if (theme === 'stpatricks') cornerGraphic = SVG_ICONS.cornerShamrock;
+        else if (theme === 'newyear') cornerGraphic = SVG_ICONS.cornerNewYear;
+        else if (theme === 'birthday') cornerGraphic = SVG_ICONS.cornerBunting;
+        else if (theme === 'easter' || theme === 'valentines' || theme === 'autumn' || theme === 'summer') cornerGraphic = SVG_ICONS.cornerVines;
+
+        if (cornerGraphic) {
+            layer.innerHTML = `
+                <div class="ambient-corner-decor top-left">${cornerGraphic}</div>
+                <div class="ambient-corner-decor top-right">${cornerGraphic}</div>
+            `;
+        }
+
+        ambientTimerId = setInterval(() => {
+            spawnSingleAmbientEffect(theme);
+        }, 9500);
+
+        setTimeout(() => spawnSingleAmbientEffect(theme), 1200);
+    }
+
+    function spawnSingleAmbientEffect(theme) {
+        const layer = document.getElementById('ambient-fx-layer');
+        if (!layer || theme === 'none') return;
+
+        const sideLeft = Math.random() < 0.5 ? (3 + Math.random() * 18) : (79 + Math.random() * 17);
+
+        if (theme === 'halloween') {
+            const spiderWrap = document.createElement('div');
+            spiderWrap.className = 'ambient-spider-drop';
+            spiderWrap.style.left = sideLeft + 'vw';
+            spiderWrap.innerHTML = `<div class="ambient-spider-thread"></div>${SVG_ICONS.spider}`;
+            layer.appendChild(spiderWrap);
+            setTimeout(() => { if (spiderWrap.parentNode) spiderWrap.parentNode.removeChild(spiderWrap); }, 11200);
+        } else if (theme === 'birthday') {
+            const bEl = document.createElement('div');
+            bEl.className = 'ambient-gentle-rise';
+            bEl.style.left = sideLeft + 'vw';
+            bEl.innerHTML = SVG_ICONS.balloon;
+            layer.appendChild(bEl);
+            setTimeout(() => { if (bEl.parentNode) bEl.parentNode.removeChild(bEl); }, 12200);
+        } else if (theme === 'bonfire') {
+            const eEl = document.createElement('div');
+            eEl.className = 'ambient-gentle-rise';
+            eEl.style.left = sideLeft + 'vw';
+            eEl.innerHTML = SVG_ICONS.emberSpark;
+            layer.appendChild(eEl);
+            setTimeout(() => { if (eEl.parentNode) eEl.parentNode.removeChild(eEl); }, 12200);
+        } else {
+            const fEl = document.createElement('div');
+            fEl.className = 'ambient-gentle-fall';
+            fEl.style.left = sideLeft + 'vw';
+            if (theme === 'christmas') fEl.innerHTML = SVG_ICONS.snowflake;
+            else if (theme === 'stpatricks') fEl.innerHTML = SVG_ICONS.clover;
+            else if (theme === 'newyear' || theme === 'summer') fEl.innerHTML = SVG_ICONS.goldStar;
+            else if (theme === 'easter') fEl.innerHTML = SVG_ICONS.easterEgg;
+            else if (theme === 'valentines') fEl.innerHTML = SVG_ICONS.heartSvg;
+            else if (theme === 'autumn') fEl.innerHTML = SVG_ICONS.autumnLeaf;
+            layer.appendChild(fEl);
+            setTimeout(() => { if (fEl.parentNode) fEl.parentNode.removeChild(fEl); }, 12200);
+        }
+    }
+
+    function spawnAmbientBurst() {
+        const theme = storeSettings.ambientTheme || 'none';
+        if (theme === 'none') {
+            customAlert("Select a Holiday or Seasonal Theme from the dropdown first to test it.");
+            return;
+        }
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => spawnSingleAmbientEffect(theme), i * 500);
+        }
+    }
+
+    async function setAmbientTheme(val, saveImmediately = false) {
+        storeSettings.ambientTheme = val;
+        applyAmbientTheme();
+        if (saveImmediately) {
+            await saveGlobalSettings();
+        }
+    }
+
+    // ==========================================
+    // TACTILE SCRATCH CARD, TIMER & ACCOUNT DISCOUNTS WALLET
+    // ==========================================
+    function checkFirstTimeVisitSuperDeal() {
+        const hasVisitedBefore = localStorage.getItem('loom_first_visit_done_v2');
+        if (!hasVisitedBefore) {
+            localStorage.setItem('loom_first_visit_done_v2', 'true');
+            setTimeout(() => {
+                if (!window.isBuildMode) {
+                    triggerRandomSuperDeal();
+                }
+            }, 700);
+        }
+    }
+
+    function setupSuperDealTimer() {
+        if (superDealTimerId) {
+            clearInterval(superDealTimerId);
+            superDealTimerId = null;
+        }
+        const sec = parseInt(storeSettings.superDealIntervalSec);
+        const input = document.getElementById('sd-interval-input');
+        if (input && !isNaN(sec)) input.value = sec;
+
+        if (!sec || sec <= 0) return;
+
+        superDealTimerId = setInterval(() => {
+            if (window.isBuildMode) return;
+            const anyOpen = [...document.querySelectorAll('.modal-overlay')].some(m => m.style.display === 'flex');
+            if (!anyOpen) {
+                triggerRandomSuperDeal();
+            }
+        }, sec * 1000);
+    }
+
+    async function saveSuperDealFrequency() {
+        const val = parseInt(document.getElementById('sd-interval-input').value) || 0;
+        storeSettings.superDealIntervalSec = val;
+        setupSuperDealTimer();
+        await saveGlobalSettings();
+        await customAlert(val > 0 ? `Deal popups set to appear every ${val} seconds.` : `Automatic deal popups turned off.`);
+    }
+
+    async function adminAddSuperDeal(e) {
+        e.preventDefault();
+        const type = document.getElementById('sd-new-type').value;
+        const title = document.getElementById('sd-new-title').value.trim();
+        const discount = parseInt(document.getElementById('sd-new-disc').value) || 15;
+        const subtitle = document.getElementById('sd-new-sub').value.trim();
+        const color = document.getElementById('sd-new-color').value || '#f59e0b';
+
+        if (!storeSettings.superDeals) storeSettings.superDeals = [];
+        storeSettings.superDeals.push({
+            id: Date.now(),
+            type,
+            title,
+            subtitle,
+            discount,
+            color
+        });
+
+        await saveGlobalSettings();
+        e.target.reset();
+        loadAdminInbox();
+        await customAlert("Deal popup added.");
+    }
+
+    async function adminDeleteSuperDeal(id) {
+        if (await customConfirm("Remove this deal popup?")) {
+            storeSettings.superDeals = (storeSettings.superDeals || []).filter(d => d.id !== id);
+            await saveGlobalSettings();
+            loadAdminInbox();
+        }
+    }
+
+    function triggerRandomSuperDeal() {
+        const pool = (storeSettings.superDeals && storeSettings.superDeals.length > 0)
+            ? storeSettings.superDeals
+            : defaultSuperDeals;
+        const deal = pool[Math.floor(Math.random() * pool.length)];
+        openSuperDealPopup(deal);
+    }
+
+    function openSuperDealPopup(deal) {
+        currentPopupDeal = deal;
+        const modal = document.getElementById('super-deal-modal');
+        const badge = document.getElementById('sd-badge');
+        const typeLabel = document.getElementById('sd-type-label');
+        const titleEl = document.getElementById('sd-title');
+        const subEl = document.getElementById('sd-subtitle');
+        const scratchContainer = document.getElementById('sd-scratch-container');
+        const scratchStage = document.getElementById('sd-scratch-wrap');
+        const flashWrap = document.getElementById('sd-flash-wrap');
+        const claimBtn = document.getElementById('sd-claim-btn');
+
+        badge.style.backgroundColor = deal.color || '#f59e0b';
+        badge.style.color = '#fff';
+        titleEl.innerText = deal.title || 'Special Offer';
+        subEl.innerText = deal.subtitle || 'Rub the foil below to reveal your discount.';
+
+        if (deal.type === 'scratch') {
+            typeLabel.innerText = 'SCRATCH CARD';
+            scratchContainer.style.display = 'block';
+            scratchStage.classList.remove('revealed');
+            flashWrap.style.display = 'none';
+            document.getElementById('sd-discount-big').innerText = `${deal.discount}% OFF`;
+            document.getElementById('sd-progress-fill').style.width = '0%';
+            claimBtn.disabled = true;
+            claimBtn.innerText = 'Scratch Foil Above to Reveal';
+            initScratchCanvas(deal.color || '#94a3b8');
+        } else {
+            typeLabel.innerText = 'SUPER DEAL';
+            scratchContainer.style.display = 'none';
+            flashWrap.style.display = 'block';
+            document.getElementById('sd-flash-big').innerText = `${deal.discount}% OFF`;
+            document.getElementById('sd-flash-big').style.color = deal.color || 'var(--accent-blue)';
+            claimBtn.disabled = false;
+            claimBtn.innerText = `Save ${deal.discount}% Off to Account`;
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function initScratchCanvas(accentHex) {
+        const canvas = document.getElementById('scratch-canvas');
+        if (!canvas) return;
+        canvas.style.opacity = '1';
+        canvas.style.pointerEvents = 'auto';
+        const ctx = canvas.getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, '#94a3b8');
+        grad.addColorStop(0.25, '#e2e8f0');
+        grad.addColorStop(0.5, '#cbd5e1');
+        grad.addColorStop(0.75, '#f8fafc');
+        grad.addColorStop(1, '#64748b');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 2;
+        for (let i = -canvas.height; i < canvas.width; i += 18) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + canvas.height, canvas.height);
+            ctx.stroke();
+        }
+
+        ctx.strokeStyle = accentHex || '#09090b';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+        ctx.fillStyle = '#09090b';
+        ctx.font = '900 19px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('RUB HERE TO SCRATCH', canvas.width / 2, canvas.height / 2 - 2);
+        ctx.font = '700 12px Inter, sans-serif';
+        ctx.fillStyle = '#334155';
+        ctx.fillText('Hold mouse button or drag finger across foil', canvas.width / 2, canvas.height / 2 + 20);
+
+        let isDrawing = false;
+        let isRevealed = false;
+        let lastX = null;
+        let lastY = null;
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function checkScratchProgress() {
+            if (isRevealed) return;
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let cleared = 0;
+            const totalPixels = imgData.length / 4;
+            for (let i = 3; i < imgData.length; i += 64) {
+                if (imgData[i] < 128) cleared++;
+            }
+            const sampledTotal = totalPixels / 16;
+            const pct = Math.min(100, Math.round((cleared / sampledTotal) * 100));
+            const bar = document.getElementById('sd-progress-fill');
+            if (bar) bar.style.width = Math.min(100, Math.round(pct * 2.2)) + '%';
+
+            if (pct >= 38) {
+                isRevealed = true;
+                canvas.style.opacity = '0';
+                canvas.style.pointerEvents = 'none';
+                if (bar) bar.style.width = '100%';
+                document.getElementById('sd-scratch-wrap').classList.add('revealed');
+                const claimBtn = document.getElementById('sd-claim-btn');
+                claimBtn.disabled = false;
+                claimBtn.innerText = `Save ${currentPopupDeal.discount}% Off to Account`;
+            }
+        }
+
+        function scratchMove(e) {
+            if (!isDrawing || isRevealed) return;
+            const { x, y } = getCoords(e);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 44;
+
+            ctx.beginPath();
+            if (lastX !== null && lastY !== null) {
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+            } else {
+                ctx.arc(x, y, 22, 0, Math.PI * 2);
+            }
+            ctx.stroke();
+            lastX = x;
+            lastY = y;
+            checkScratchProgress();
+        }
+
+        canvas.onmousedown = (e) => { isDrawing = true; const c = getCoords(e); lastX = c.x; lastY = c.y; scratchMove(e); };
+        canvas.onmousemove = scratchMove;
+        window.addEventListener('mouseup', () => { isDrawing = false; lastX = null; lastY = null; });
+
+        canvas.ontouchstart = (e) => { isDrawing = true; const c = getCoords(e); lastX = c.x; lastY = c.y; scratchMove(e); };
+        canvas.ontouchmove = (e) => { e.preventDefault(); scratchMove(e); };
+        canvas.ontouchend = () => { isDrawing = false; lastX = null; lastY = null; };
+    }
+
+    function closeSuperDealModal() {
+        document.getElementById('super-deal-modal').style.display = 'none';
+    }
+
+    async function saveDealToUserAccount(dealObj) {
+        if (!user || !user.email || !dealObj) return null;
+        syncUserWithAccountRecord();
+        const acc = getAccountRecord(user.email);
+        const codeId = `DEAL_${dealObj.discount}_${Date.now().toString().slice(-5)}`;
+        const entry = {
+            codeId: codeId,
+            title: dealObj.title || `${dealObj.discount}% Off Deal`,
+            discount: Number(dealObj.discount) || 15,
+            type: dealObj.type || 'deal',
+            color: dealObj.color || '#7c3aed',
+            claimedAt: new Date().toLocaleDateString(),
+            used: false
+        };
+        if (!acc.savedDiscounts) acc.savedDiscounts = [];
+        acc.savedDiscounts.push(entry);
+        user.savedDiscounts = acc.savedDiscounts;
+        localStorage.setItem('loom_user_v2', JSON.stringify(user));
+        updateDiscountsButtonsUI();
+        await saveGlobalSettings();
+        return entry;
+    }
+
+    async function claimCurrentSuperDeal() {
+        if (!currentPopupDeal) return;
+        const dealToClaim = { ...currentPopupDeal };
+        closeSuperDealModal();
+
+        if (!user || !user.email) {
+            pendingClaimDeal = dealToClaim;
+            await customAlert(`Please Sign In or Register an account to claim and save this ${dealToClaim.discount}% OFF discount to your account.`);
+            openAccountModal();
+            return;
+        }
+
+        await saveDealToUserAccount(dealToClaim);
+        await customAlert(`Saved ${dealToClaim.discount}% OFF (${dealToClaim.title}) to your account! Click the 'Discounts' button in your Cart or Checkout whenever you want to use it.`);
+    }
+
+    // --- Saved Discounts Wallet Modal (Cart & Checkout) ---
+    async function openDiscountsModal(context = 'cart') {
+        discountsModalContext = context;
+        if (!user || !user.email) {
+            await customAlert("Please Sign In or Register an account to view and apply your saved discounts.");
+            openAccountModal();
+            return;
+        }
+        syncUserWithAccountRecord();
+        renderDiscountsWalletModal();
+        document.getElementById('discounts-modal').style.display = 'flex';
+    }
+
+    function closeDiscountsModal() {
+        document.getElementById('discounts-modal').style.display = 'none';
+    }
+
+    function renderDiscountsWalletModal() {
+        const listEl = document.getElementById('discounts-wallet-list');
+        if (!listEl) return;
+
+        syncUserWithAccountRecord();
+        const allDiscounts = (user && user.savedDiscounts) ? user.savedDiscounts.slice().reverse() : [];
+        const usedCodesSet = new Set((user && user.usedCodes) || []);
+
+        if (allDiscounts.length === 0) {
+            listEl.innerHTML = `
+                <div style="text-align:center; padding:2rem 1rem; border:2px dashed var(--border-light); color:var(--text-muted); font-weight:700;">
+                    You don't have any saved discounts on your account yet.<br><br>
+                    Claim a Scratch Card or Super Deal popup while browsing to save discounts here!
+                </div>
+            `;
+            return;
+        }
+
+        const currentlySelectedId = discountsModalContext === 'custom' ? customAppliedSavedDiscountId : appliedSavedDiscountId;
+
+        listEl.innerHTML = allDiscounts.map(d => {
+            const isUsed = d.used || usedCodesSet.has(d.codeId);
+            const isSelected = !isUsed && currentlySelectedId === d.codeId;
+
+            let actionBtn = '';
+            if (isUsed) {
+                actionBtn = `<span style="background:var(--border-light); color:var(--text-muted); padding:6px 12px; font-weight:900; font-size:0.75rem; text-transform:uppercase;">Used</span>`;
+            } else if (isSelected) {
+                actionBtn = `<button type="button" class="btn-primary" style="padding:0.5rem 1rem; font-size:0.78rem; background:var(--danger); color:#fff; border-color:#000;" onclick="removeAppliedSavedDiscount()">Remove</button>`;
+            } else {
+                actionBtn = `<button type="button" class="btn-primary" style="padding:0.5rem 1.2rem; font-size:0.8rem; background:var(--success); color:#000; border-color:#000;" onclick="applySavedAccountDiscount('${d.codeId}')">Use Discount</button>`;
+            }
+
+            return `
+                <div class="discount-wallet-item ${isUsed ? 'used' : ''}">
+                    <div>
+                        <span style="background:${d.color || 'var(--accent-blue)'}; color:#fff; padding:2px 8px; font-size:0.68rem; font-weight:900; text-transform:uppercase;">${d.discount}% OFF</span>
+                        <h4 style="font-size:1.1rem; font-weight:900; text-transform:uppercase; margin-top:4px;">${d.title}</h4>
+                        <small style="color:var(--text-muted); font-weight:700;">Claimed ${d.claimedAt || ''} &bull; Single-Use</small>
+                    </div>
+                    <div>
+                        ${actionBtn}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function applySavedAccountDiscount(codeId) {
+        if (!user || !user.email) return;
+        syncUserWithAccountRecord();
+        const usedSet = new Set(user.usedCodes || []);
+        const found = (user.savedDiscounts || []).find(d => d.codeId === codeId);
+        if (!found || found.used || usedSet.has(codeId)) {
+            customAlert("This discount has already been used.");
+            return;
+        }
+
+        if (discountsModalContext === 'custom') {
+            // Only ONE discount allowed at a time on custom order
+            customActiveDiscount = found.discount / 100;
+            customAppliedPromoCode = found.codeId;
+            customAppliedSavedDiscountId = found.codeId;
+            const customPromoInput = document.getElementById('custom-promo');
+            if (customPromoInput) customPromoInput.value = '';
+            const msg = document.getElementById('custom-promo-msg');
+            if (msg) {
+                msg.innerText = `ACCOUNT DISCOUNT: ${found.discount}% OFF (${found.title}) APPLIED`;
+                msg.style.color = "var(--success)";
+            }
+            calculateCustomTotal();
+        } else {
+            // Only ONE discount allowed at a time on cart order
+            activeDiscount = found.discount / 100;
+            appliedPromoCode = found.codeId;
+            appliedSavedDiscountId = found.codeId;
+            const basketPromoInput = document.getElementById('basket-promo');
+            if (basketPromoInput) basketPromoInput.value = '';
+            const msg = document.getElementById('promo-msg');
+            if (msg) {
+                msg.innerText = `ACCOUNT DISCOUNT: ${found.discount}% OFF (${found.title}) APPLIED`;
+                msg.style.color = "var(--success)";
+            }
+            calculateTotals();
+            calculateCheckoutModalTotals();
+        }
+
+        closeDiscountsModal();
+    }
+
+    function removeAppliedSavedDiscount() {
+        if (discountsModalContext === 'custom') {
+            customActiveDiscount = 0;
+            customAppliedPromoCode = null;
+            customAppliedSavedDiscountId = null;
+            const msg = document.getElementById('custom-promo-msg');
+            if (msg) msg.innerText = '';
+            calculateCustomTotal();
+        } else {
+            activeDiscount = 0;
+            appliedPromoCode = null;
+            appliedSavedDiscountId = null;
+            const msg = document.getElementById('promo-msg');
+            if (msg) msg.innerText = '';
+            calculateTotals();
+            calculateCheckoutModalTotals();
+        }
+        renderDiscountsWalletModal();
+    }
+
+    function markDiscountCodeUsedForAccount(codeOrId) {
+        if (!user || !user.email || !codeOrId) return;
+        syncUserWithAccountRecord();
+        const acc = getAccountRecord(user.email);
+        if (!user.usedCodes) user.usedCodes = [];
+        if (!user.usedCodes.includes(codeOrId)) user.usedCodes.push(codeOrId);
+        if (!acc.usedCodes.includes(codeOrId)) acc.usedCodes.push(codeOrId);
+
+        (acc.savedDiscounts || []).forEach(d => {
+            if (d.codeId === codeOrId) d.used = true;
+        });
+        user.savedDiscounts = acc.savedDiscounts;
+        localStorage.setItem('loom_user_v2', JSON.stringify(user));
+        updateDiscountsButtonsUI();
+    }
 
     // --- Address Autocomplete Logic ---
     function setupAddressAutocomplete(inputId, listId, callback) {
@@ -1670,8 +3082,15 @@
 
         await loadCloudData();
         
-        if (user && user.theme === 'dark') document.body.setAttribute('data-theme', 'dark');
+        if (user) {
+            syncUserWithAccountRecord();
+            if (user.theme === 'dark') document.body.setAttribute('data-theme', 'dark');
+        }
         applyEditableContent();
+        applyAmbientTheme();
+        checkFirstTimeVisitSuperDeal();
+        setupSuperDealTimer();
+        initVisitorSessionAnalytics();
 
         updateSaleBanner();
         renderHomePage();
@@ -1679,7 +3098,9 @@
         renderExnerPage();
         renderAllCustomBlocks();
         updateUIState();
+        updateDiscountsButtonsUI();
         updateCartCount();
+        calculateCustomTotal();
 
         setupAddressAutocomplete('checkout-address', 'checkout-address-list', calculateCheckoutModalTotals);
         setupAddressAutocomplete('custom-address', 'custom-address-list', null);
@@ -1711,6 +3132,7 @@
         if (pageId === 'exner') renderExnerPage();
         
         updateSaleBanner(); 
+        updateDiscountsButtonsUI();
         if(window.isBuildMode) enableBuildModeFeatures();
     }
 
@@ -1723,20 +3145,30 @@
     }
 
     function createProductCardHTML(prod) {
+        const imgs = parseImageList(prod.image);
+        const mainImg = imgs[0];
+        const multiPill = imgs.length > 1 ? `<span class="multi-img-pill">${SVG_ICONS.photos} ${imgs.length}</span>` : '';
+
         let stockText = prod.stock > 0 ? `IN STOCK: ${prod.stock}` : `OUT OF STOCK`;
         let stockColor = prod.stock > 0 ? `var(--text-muted)` : `var(--danger)`;
         let badge = prod.stock <= 0 ? "SOLD OUT" : (prod.badge || "NEW");
         let isLimited = badge.toUpperCase() === 'LIMITED EDITION';
         let badgeClass = isLimited ? 'discount-tag limited-tag' : 'discount-tag';
+        let welcomeTagHTML = isNewAccountWelcomeEligible() ? `<span class="welcome-deal-tag">WELCOME DEAL -15%</span>` : '';
+
         let rating = getAverageRating(prod.id);
         let ratingHTML = rating > 0 ? `<span style="color:var(--star-color); font-size:0.8rem; display:inline-flex; align-items:center; gap:3px;">${SVG_ICONS.starFilled} ${rating}</span>` : '';
         let storeTag = prod.store === 'exner' ? `<span style="position:absolute; bottom:10px; right:10px; background:#3b82f6; color:#fff; font-size:0.6rem; padding:3px 6px; font-weight:900; z-index:2; border-radius:4px;">EXNER 3D</span>` : '';
 
         return `
             <div class="product-card" onclick="openProductPage(${prod.id})">
-                <span class="${badgeClass}">${badge}</span>
+                <div class="badge-stack">
+                    <span class="${badgeClass}">${badge}</span>
+                    ${welcomeTagHTML}
+                </div>
+                ${multiPill}
                 <div class="img-wrap">
-                    <img src="${prod.image}" alt="${prod.name}">
+                    <img src="${mainImg}" alt="${prod.name}">
                     ${storeTag}
                 </div>
                 <div class="product-info">
@@ -1835,19 +3267,61 @@
         switchPage('items');
     }
 
+    function selectDetailImage(idx) {
+        if (!activeProductImages || activeProductImages.length === 0) return;
+        activeProductImgIdx = (idx + activeProductImages.length) % activeProductImages.length;
+        document.getElementById('detail-img').src = activeProductImages[activeProductImgIdx];
+        document.querySelectorAll('.detail-thumb').forEach((t, i) => {
+            t.classList.toggle('active', i === activeProductImgIdx);
+        });
+    }
+
+    function stepDetailImage(dir) {
+        selectDetailImage(activeProductImgIdx + dir);
+    }
+
     function openProductPage(id) {
         if (window.isBuildMode) return;
         activeProduct = products.find(p => p.id === id);
         if(!activeProduct) return;
+        recordProductViewAnalytics(activeProduct);
         activeColor = (activeProduct.colors && activeProduct.colors[0]) ? activeProduct.colors[0] : {name: "Standard", hex: "#000"};
 
-        document.getElementById('detail-img').src = activeProduct.image;
+        activeProductImages = parseImageList(activeProduct.image);
+        activeProductImgIdx = 0;
+        document.getElementById('detail-img').src = activeProductImages[0];
+
+        const prevBtn = document.getElementById('detail-prev-img');
+        const nextBtn = document.getElementById('detail-next-img');
+        const thumbsRow = document.getElementById('detail-thumbs-row');
+        thumbsRow.innerHTML = '';
+
+        if (activeProductImages.length > 1) {
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+            activeProductImages.forEach((url, idx) => {
+                const thumb = document.createElement('img');
+                thumb.src = url;
+                thumb.className = `detail-thumb ${idx === 0 ? 'active' : ''}`;
+                thumb.onclick = () => selectDetailImage(idx);
+                thumbsRow.appendChild(thumb);
+            });
+        } else {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+        }
+
         document.getElementById('detail-title').innerText = activeProduct.name;
         const detailBadge = document.getElementById('detail-badge');
         const badgeText = activeProduct.stock <= 0 ? "SOLD OUT" : (activeProduct.badge || "NEW");
         detailBadge.innerText = badgeText;
         detailBadge.className = badgeText.toUpperCase() === 'LIMITED EDITION' ? 'discount-tag limited-tag' : 'discount-tag';
         
+        const welcomeBadge = document.getElementById('detail-welcome-badge');
+        if (welcomeBadge) {
+            welcomeBadge.style.display = isNewAccountWelcomeEligible() ? 'inline-flex' : 'none';
+        }
+
         const stockStatus = document.getElementById('detail-stock-status');
         const addBtn = document.getElementById('detail-add-btn');
         
@@ -1902,7 +3376,7 @@
             });
         } else {
             ratingDisplay.innerText = "No ratings yet";
-            reviewsList.innerHTML = '<p style="color: var(--text-muted); font-weight: 600;">No reviews yet. Purchase this item to leave a review!</p>';
+            reviewsList.innerHTML = '<p style="color: var(--text-muted); font-weight: 600;">No reviews yet. Order this item to leave a review.</p>';
         }
 
         document.getElementById('admin-btn').style.display = (user && user.email.toLowerCase() === 'leonardonaracc1@outlook.com') ? 'inline-flex' : 'none';
@@ -1935,7 +3409,7 @@
     // --- Cart Logic ---
     async function addToCartFromDetail() {
         if(!user) {
-            await customAlert("Please Sign In or Create an Account to add items to your cart.");
+            await customAlert("Please Sign In or Register to add items to your cart.");
             openAccountModal();
             return;
         }
@@ -1949,10 +3423,11 @@
         }
 
         if (existingItem) existingItem.qty += qty;
-        else cart.push({ id: activeProduct.id, name: activeProduct.name, price: activeProduct.price, image: activeProduct.image, color: activeColor, qty: qty, store: activeProduct.store });
+        else cart.push({ id: activeProduct.id, name: activeProduct.name, price: activeProduct.price, image: getPrimaryImage(activeProduct), color: activeColor, qty: qty, store: activeProduct.store });
 
         localStorage.setItem('loom_cart_v2', JSON.stringify(cart));
         updateCartCount();
+        syncVisitorCartToAnalytics();
         
         const btn = document.getElementById('detail-add-btn');
         btn.innerHTML = `${SVG_ICONS.check} ADDED TO CART`; btn.style.background = "var(--success)"; btn.style.color = "#000";
@@ -1963,6 +3438,7 @@
         cart.splice(index, 1); 
         localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); 
         updateCartCount(); 
+        syncVisitorCartToAnalytics();
         renderBasket(); 
     }
     
@@ -1992,44 +3468,62 @@
                 let isExner = item.store === 'exner';
                 let exnerStyle = isExner ? `box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); border-color: #3b82f6;` : '';
                 let exnerTag = isExner ? `<span style="color:#3b82f6; font-size:0.75rem; font-weight:900;">EXNER 3D</span><br>` : '';
+                let welcomePill = isNewAccountWelcomeEligible() ? `<span style="color:var(--success); font-size:0.75rem; font-weight:900;">Includes 15% Welcome Deal</span><br>` : '';
 
                 container.innerHTML += `
                     <div class="basket-item" style="${exnerStyle}">
-                        <img src="${item.image}" alt="${item.name}">
+                        <img src="${parseImageList(item.image)[0]}" alt="${item.name}">
                         <div class="basket-item-info">
                             ${exnerTag}
                             <h3 style="text-transform: uppercase; font-size: 1.25rem; font-weight: 900; margin-bottom: 0.2rem; letter-spacing:-0.5px; color:${isExner?'#3b82f6':'inherit'}">${item.name}</h3>
-                            <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 800; margin-bottom: 0.5rem; text-transform: uppercase;">Color: ${item.color.name} | Qty: ${item.qty}</p>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 800; margin-bottom: 0.3rem; text-transform: uppercase;">Colour: ${item.color.name} | Qty: ${item.qty}</p>
+                            ${welcomePill}
                             <div style="font-weight: 900; color: var(--text-main); font-size: 1.1rem;">£${(activeItemPrice * item.qty).toFixed(2)}</div>
                         </div>
                         <button onclick="removeFromCart(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900; text-transform: uppercase;">Remove</button>
                     </div>`;
             });
         }
+        updateDiscountsButtonsUI();
         calculateTotals();
         renderCartRecommended();
     }
 
-    function applyPromo() {
+    async function applyPromo() {
+        if (!user || !user.email) {
+            await customAlert("Please Sign In or Register an account to use promo codes and discounts.");
+            openAccountModal();
+            return;
+        }
+        syncUserWithAccountRecord();
         const input = document.getElementById('basket-promo').value.toUpperCase().trim();
         const msg = document.getElementById('promo-msg');
-        let usedCodes = user ? (user.usedCodes || []) : [];
+        let usedCodes = user.usedCodes || [];
+
+        if (!input) {
+            activeDiscount = 0; appliedPromoCode = null; appliedSavedDiscountId = null; msg.innerText = "";
+            calculateTotals();
+            return;
+        }
 
         if (usedCodes.includes(input)) {
-            msg.innerText = "Code already used."; msg.style.color = "var(--danger)"; activeDiscount = 0; appliedPromoCode = null;
+            msg.innerText = "Code already used on your account."; msg.style.color = "var(--danger)"; activeDiscount = 0; appliedPromoCode = null; appliedSavedDiscountId = null;
         } else if (storeSettings.promos[input]) {
+            // Applying a promo code replaces any selected saved discount (only 1 discount allowed per order)
+            appliedSavedDiscountId = null;
             activeDiscount = storeSettings.promos[input] / 100; appliedPromoCode = input;
-            msg.innerText = `${(activeDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
+            msg.innerText = `${(activeDiscount*100)}% OFF PROMO APPLIED`; msg.style.color = "var(--success)";
         } else if (storeSettings.exnerPromos && storeSettings.exnerPromos[input]) {
             let hasExner = cart.some(i => i.store === 'exner');
             if(hasExner) {
+                appliedSavedDiscountId = null;
                 activeDiscount = storeSettings.exnerPromos[input] / 100; appliedPromoCode = input;
                 msg.innerText = `EXNER ${(activeDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
             } else {
                 msg.innerText = "Code only valid for Exner 3D items."; msg.style.color = "var(--danger)";
             }
         } else {
-            activeDiscount = 0; appliedPromoCode = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
+            activeDiscount = 0; appliedPromoCode = null; appliedSavedDiscountId = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
         }
         calculateTotals();
     }
@@ -2054,7 +3548,7 @@
 
         let total = Math.max(0, (subtotal - discountAmt) + delivery);
         const btnSpan = document.querySelector('#final-confirm-order-btn span');
-        if(btnSpan) btnSpan.innerText = `Confirm & Place Order (£${total.toFixed(2)})`;
+        if(btnSpan) btnSpan.innerText = `Place Order (£${total.toFixed(2)})`;
     }
 
     // --- Checkout Flow ---
@@ -2072,6 +3566,7 @@
         }
 
         window.currentCheckoutMode = 'cart';
+        updateDiscountsButtonsUI();
         document.getElementById('checkout-name').value = user.name || user.email.split('@')[0];
         document.getElementById('checkout-email').value = user.email;
         if(user.address) document.getElementById('checkout-address').value = user.address;
@@ -2123,6 +3618,7 @@
         let delivery = address.toUpperCase().includes('BB5') ? 0 : 5.00;
         let total = `£${Math.max(0, (subtotal - discountAmt) + delivery).toFixed(2)}`;
         let discountStr = `£${discountAmt.toFixed(2)}`;
+        let welcomeNote = isNewAccountWelcomeEligible() ? 'Yes (15% Welcome Deal Applied)' : 'No';
 
         let customerName = document.getElementById('checkout-name').value;
         let customerEmail = document.getElementById('checkout-email').value;
@@ -2131,15 +3627,16 @@
 
 ====================================== MAGIC LOOM CREATIONS ORDER
 
-TOTAL PRICE TO COLLECT: {total}
-DELIVERY FEE APPLIED: £{delivery.toFixed(2)} DISCOUNT APPLIED: -${discountStr}
+TOTAL PRICE TO COLLECT: ${total}
+DELIVERY FEE APPLIED: £${delivery.toFixed(2)} NEW ACCOUNT WELCOME DEAL: ${welcomeNote}
+EXTRA PROMO / DEAL DISCOUNT (${appliedPromoCode || 'None'}): -${discountStr}
 
 Customer Name: ${customerName} Customer Email: ${customerEmail} Phone:
 ${user.phone || 'N/A'} Shipping Address: ${address}
 
 Items Ordered: ${orderDetails}
 
-(Please reply directly to ${customerEmail} to send the secure payment link!) `;
+(Please reply directly to ${customerEmail} to send the payment link.) `;
 
         const orderId = Date.now();
         const orderData = { 
@@ -2159,9 +3656,20 @@ Items Ordered: ${orderDetails}
                 if (dbError) throw new Error("Supabase Database Error: " + dbError.message);
             }
 
+            if (user) {
+                user.hasPlacedOrder = true;
+                if (!storeSettings.usedWelcomeEmails) storeSettings.usedWelcomeEmails = [];
+                if (!storeSettings.usedWelcomeEmails.includes(user.email.toLowerCase())) {
+                    storeSettings.usedWelcomeEmails.push(user.email.toLowerCase());
+                }
+                if (appliedPromoCode) {
+                    markDiscountCodeUsedForAccount(appliedPromoCode);
+                }
+                localStorage.setItem('loom_user_v2', JSON.stringify(user));
+            }
+
             if (!storeSettings.orderMeta) storeSettings.orderMeta = {};
             storeSettings.orderMeta[orderId] = { status: 'Pending', itemIds: itemIds };
-            await saveGlobalSettings();
 
             const formRes = await fetch(formspreeEndpoint, {
                 method: "POST", 
@@ -2181,17 +3689,14 @@ Items Ordered: ${orderDetails}
                 }
             }
 
-            if (appliedPromoCode) {
-                user.usedCodes = user.usedCodes || []; 
-                user.usedCodes.push(appliedPromoCode); 
-                localStorage.setItem('loom_user_v2', JSON.stringify(user));
-            }
-
             cart = []; 
             localStorage.setItem('loom_cart_v2', JSON.stringify(cart)); updateCartCount();
-            activeDiscount = 0; appliedPromoCode = null;
-            document.getElementById('basket-promo').value = ""; applyPromo();
+            activeDiscount = 0; appliedPromoCode = null; appliedSavedDiscountId = null;
+            document.getElementById('basket-promo').value = "";
+            document.getElementById('promo-msg').innerText = "";
+            calculateTotals();
             document.getElementById('real-checkout-form').reset();
+            await syncVisitorCartToAnalytics();
             
             document.getElementById('checkout-confirm-modal').style.display = 'none';
             renderHomePage(); renderCatalog(); renderExnerPage();
@@ -2206,31 +3711,45 @@ Items Ordered: ${orderDetails}
         btn.querySelector('span').style.display = 'block'; spinner.style.display = 'none';
     }
 
-    // --- Custom Orders ---
+    // --- Custom Orders (£3.50 Minimum Base Price) ---
     let customActiveDiscount = 0;
     let customAppliedPromoCode = null;
     
     function calculateCustomTotal() {
-        let base = 5.00;
+        let base = 3.50;
         let effectiveBase = getEffectivePrice(base); 
         let discount = effectiveBase * customActiveDiscount;
         let total = Math.max(0, effectiveBase - discount);
-        document.getElementById('custom-order-total').innerText = `£${total.toFixed(2)}+`;
+        const el = document.getElementById('custom-order-total');
+        if (el) el.innerText = `£${total.toFixed(2)}+`;
         return { effectiveBase, discount, total };
     }
 
-    function applyCustomPromo() {
+    async function applyCustomPromo() {
+        if (!user || !user.email) {
+            await customAlert("Please Sign In or Register an account to use promo codes and discounts.");
+            openAccountModal();
+            return;
+        }
+        syncUserWithAccountRecord();
         const input = document.getElementById('custom-promo').value.toUpperCase().trim();
         const msg = document.getElementById('custom-promo-msg');
-        let usedCodes = user ? (user.usedCodes || []) : [];
+        let usedCodes = user.usedCodes || [];
+
+        if (!input) {
+            customActiveDiscount = 0; customAppliedPromoCode = null; customAppliedSavedDiscountId = null; msg.innerText = "";
+            calculateCustomTotal();
+            return;
+        }
 
         if (usedCodes.includes(input)) {
-            msg.innerText = "Code already used."; msg.style.color = "var(--danger)"; customActiveDiscount = 0; customAppliedPromoCode = null;
+            msg.innerText = "Code already used on your account."; msg.style.color = "var(--danger)"; customActiveDiscount = 0; customAppliedPromoCode = null; customAppliedSavedDiscountId = null;
         } else if (storeSettings.promos[input]) {
+            customAppliedSavedDiscountId = null;
             customActiveDiscount = storeSettings.promos[input] / 100; customAppliedPromoCode = input;
-            msg.innerText = `${(customActiveDiscount*100)}% OFF APPLIED`; msg.style.color = "var(--success)";
+            msg.innerText = `${(customActiveDiscount*100)}% OFF PROMO APPLIED`; msg.style.color = "var(--success)";
         } else {
-            customActiveDiscount = 0; customAppliedPromoCode = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
+            customActiveDiscount = 0; customAppliedPromoCode = null; customAppliedSavedDiscountId = null; msg.innerText = "Invalid code."; msg.style.color = "var(--danger)";
         }
         calculateCustomTotal();
     }
@@ -2258,7 +3777,7 @@ Items Ordered: ${orderDetails}
         document.getElementById('checkout-confirm-modal').style.display = 'flex';
         
         const confirmBtn = document.getElementById('final-confirm-order-btn');
-        confirmBtn.querySelector('span').innerText = "Confirm & Send Custom Request";
+        confirmBtn.querySelector('span').innerText = "Send Custom Order Request";
         confirmBtn.onclick = submitCustomOrder;
     }
 
@@ -2282,17 +3801,16 @@ Items Ordered: ${orderDetails}
 
 ====================================== CUSTOM ORDER REQUEST
 
-BASE EST TO COLLECT: {grandTotal}
-Base Min Price: £5.00+
-Delivery Fee: £{delivery.toFixed(2)} Discount Applied: -£${discount.toFixed(2)}
+STARTING ESTIMATE: ${grandTotal}
+Base Min Price: £3.50+
+Delivery Fee: £${delivery.toFixed(2)} Discount Applied (${customAppliedPromoCode || 'None'}): -£${discount.toFixed(2)}
 
 Name: ${name} Email: ${email} Phone: ${user.phone || 'N/A'} Shipping Address:
 ${address}
 
-Vision/Details: ${msg}
+Order Details: ${msg}
 
-(Reply directly to ${email} to send the secure payment link with final price!)
-`;
+(Reply directly to ${email} to send the payment link with final price.) `;
 
         const reqId = Date.now();
         const requestData = { 
@@ -2306,6 +3824,18 @@ Vision/Details: ${msg}
                 if (dbError) throw new Error("Database Error: " + dbError.message);
             }
 
+            if (user) {
+                user.hasPlacedOrder = true;
+                if (!storeSettings.usedWelcomeEmails) storeSettings.usedWelcomeEmails = [];
+                if (!storeSettings.usedWelcomeEmails.includes(user.email.toLowerCase())) {
+                    storeSettings.usedWelcomeEmails.push(user.email.toLowerCase());
+                }
+                if (customAppliedPromoCode) {
+                    markDiscountCodeUsedForAccount(customAppliedPromoCode);
+                }
+                localStorage.setItem('loom_user_v2', JSON.stringify(user));
+            }
+
             if (!storeSettings.orderMeta) storeSettings.orderMeta = {};
             storeSettings.orderMeta[reqId] = { status: 'Pending', itemIds: [] };
             await saveGlobalSettings();
@@ -2317,16 +3847,13 @@ Vision/Details: ${msg}
 
             if (!formRes.ok) throw new Error("Email failed to send.");
 
-            if (customAppliedPromoCode) {
-                user.usedCodes = user.usedCodes || []; user.usedCodes.push(customAppliedPromoCode); localStorage.setItem('loom_user_v2', JSON.stringify(user));
-            }
-
             document.getElementById('custom-order-form').reset();
-            customActiveDiscount = 0; customAppliedPromoCode = null;
+            customActiveDiscount = 0; customAppliedPromoCode = null; customAppliedSavedDiscountId = null;
             document.getElementById('custom-promo').value = ""; document.getElementById('custom-promo-msg').innerText = "";
             calculateCustomTotal();
 
             document.getElementById('checkout-confirm-modal').style.display = 'none';
+            renderHomePage(); renderCatalog(); renderExnerPage();
             document.getElementById('success-modal').style.display = 'flex';
             
             btn.onclick = processFinalCheckout;
@@ -2345,6 +3872,7 @@ Vision/Details: ${msg}
         } else {
             accBtn.innerText = "SIGN IN";
         }
+        updateDiscountsButtonsUI();
     }
 
     function toggleTheme() {
@@ -2372,9 +3900,16 @@ Vision/Details: ${msg}
     function openAccountModal() {
         document.getElementById('account-modal').style.display = 'flex';
         if (user) {
+            syncUserWithAccountRecord();
             document.getElementById('modal-login-view').style.display = 'none';
             document.getElementById('modal-profile-view').style.display = 'block';
             document.getElementById('profile-email').innerText = user.email;
+            const welcomeStatus = document.getElementById('profile-welcome-status');
+            if (welcomeStatus) {
+                welcomeStatus.innerHTML = isNewAccountWelcomeEligible()
+                    ? `<span style="color:var(--success);">Welcome Deal: 15% off all items on your first order</span>`
+                    : `<span style="color:var(--text-muted);">First Order Welcome Deal Used</span>`;
+            }
             const isAdmin = user.email.toLowerCase() === 'leonardonaracc1@outlook.com';
             document.getElementById('profile-admin-btn').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('profile-admin-exner-btn').style.display = isAdmin ? 'block' : 'none';
@@ -2390,15 +3925,32 @@ Vision/Details: ${msg}
     }
     function closeAccountModal() { document.getElementById('account-modal').style.display = 'none'; }
     
-    function processLogin(e) {
+    async function processLogin(e) {
         e.preventDefault();
         const email = document.getElementById('login-email').value.trim();
         if(!email) return;
         let existingUser = JSON.parse(localStorage.getItem('loom_user_v2'));
-        user = (existingUser && existingUser.email === email) ? existingUser : { email, usedCodes: [], theme: 'light' };
-        localStorage.setItem('loom_user_v2', JSON.stringify(user));
+        const alreadyUsedWelcome = (storeSettings.usedWelcomeEmails || []).includes(email.toLowerCase());
+        const acc = getAccountRecord(email);
+        user = (existingUser && existingUser.email.toLowerCase() === email.toLowerCase())
+            ? existingUser
+            : { email, usedCodes: acc.usedCodes || [], savedDiscounts: acc.savedDiscounts || [], theme: 'light', hasPlacedOrder: alreadyUsedWelcome || acc.hasPlacedOrder };
+        syncUserWithAccountRecord();
+        ensureVisitorAnalyticsRecord();
         updateUIState(); closeAccountModal();
         if (user.theme === 'dark') document.body.setAttribute('data-theme', 'dark');
+
+        // If user was trying to claim a popup deal when prompted to sign in, save it to their account now!
+        if (pendingClaimDeal) {
+            const dealToSave = pendingClaimDeal;
+            pendingClaimDeal = null;
+            await saveDealToUserAccount(dealToSave);
+            await customAlert(`Signed in! Your ${dealToSave.discount}% OFF discount (${dealToSave.title}) has been saved to your account. Open 'Discounts' in your Cart or Checkout to use it.`);
+        } else {
+            await saveGlobalSettings();
+        }
+
+        renderHomePage(); renderCatalog(); renderExnerPage(); calculateCustomTotal();
         if (activeProduct && document.getElementById('page-product').classList.contains('active')) openProductPage(activeProduct.id);
     }
 
@@ -2408,14 +3960,19 @@ Vision/Details: ${msg}
         user.phone = document.getElementById('user-phone').value;
         user.address = document.getElementById('user-address').value;
         localStorage.setItem('loom_user_v2', JSON.stringify(user));
+        ensureVisitorAnalyticsRecord();
+        await saveGlobalSettings();
         updateUIState();
-        await customAlert("Settings Saved!");
+        await customAlert("Settings Saved.");
     }
 
     function processLogout() {
         user = null; localStorage.removeItem('loom_user_v2'); 
+        activeDiscount = 0; appliedPromoCode = null; appliedSavedDiscountId = null;
+        customActiveDiscount = 0; customAppliedPromoCode = null; customAppliedSavedDiscountId = null;
         document.body.removeAttribute('data-theme');
         updateUIState(); closeAccountModal();
+        renderHomePage(); renderCatalog(); renderExnerPage(); calculateCustomTotal(); calculateTotals();
         if(document.getElementById('page-admin').classList.contains('active') || document.getElementById('page-admin-exner').classList.contains('active')) switchPage('home');
         if(document.getElementById('page-product').classList.contains('active')) openProductPage(activeProduct.id);
     }
@@ -2432,6 +3989,12 @@ Vision/Details: ${msg}
             if(data.length === 0) {
                 container.innerHTML = '<p style="color:var(--text-muted);">No orders found.</p>';
                 return;
+            }
+
+            if (!user.hasPlacedOrder) {
+                user.hasPlacedOrder = true;
+                localStorage.setItem('loom_user_v2', JSON.stringify(user));
+                renderHomePage(); renderCatalog(); renderExnerPage();
             }
 
             container.innerHTML = '';
@@ -2498,7 +4061,7 @@ Vision/Details: ${msg}
         await saveGlobalSettings();
         document.getElementById('review-modal').style.display = 'none';
         document.getElementById('review-form').reset();
-        await customAlert("Thank you for your review!");
+        await customAlert("Thank you for your review.");
     }
 
     // --- Feedback System ---
@@ -2511,13 +4074,13 @@ Vision/Details: ${msg}
             id: Date.now(),
             title: title,
             desc: desc,
-            user: user ? user.email : 'Anonymous',
+            user: user ? user.email : 'Guest',
             date: new Date().toLocaleDateString()
         });
 
         await saveGlobalSettings();
         e.target.reset();
-        await customAlert("Feedback submitted to Admin! Thank you.");
+        await customAlert("Thank you! Your suggestion has been sent.");
     }
 
     // --- Admin Dashboard & Inbox ---
@@ -2549,6 +4112,30 @@ Vision/Details: ${msg}
 
     async function loadAdminInbox() {
         populateAdminCategories('main');
+        renderAdminAnalyticsUI();
+
+        const ambSel = document.getElementById('admin-ambient-select');
+        if (ambSel) ambSel.value = storeSettings.ambientTheme || 'none';
+        const sdFreqInput = document.getElementById('sd-interval-input');
+        if (sdFreqInput) sdFreqInput.value = storeSettings.superDealIntervalSec !== undefined ? storeSettings.superDealIntervalSec : 90;
+
+        const sdList = document.getElementById('admin-superdeals-list');
+        if (sdList) {
+            sdList.innerHTML = '';
+            (storeSettings.superDeals || []).forEach(deal => {
+                sdList.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--border-light); font-weight:700; gap:10px;">
+                        <div>
+                            <span style="background:${deal.color}; color:#fff; padding:2px 8px; font-size:0.7rem; font-weight:900; text-transform:uppercase; margin-right:6px;">${deal.type}</span>
+                            <strong>${deal.title}</strong> (${deal.discount}% OFF) — <span style="color:var(--text-muted); font-size:0.85rem;">${deal.subtitle}</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick='openSuperDealPopup(${JSON.stringify(deal).replace(/'/g, "&apos;")})' style="background:var(--bg-main); border:1px solid var(--border-dark); padding:4px 8px; cursor:pointer; font-weight:800; font-size:0.75rem;">Test</button>
+                            <button onclick="adminDeleteSuperDeal(${deal.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:900;">Delete</button>
+                        </div>
+                    </div>`;
+            });
+        }
 
         const promoList = document.getElementById('admin-promos-list');
         promoList.innerHTML = '';
@@ -2621,7 +4208,7 @@ Vision/Details: ${msg}
                             <span style="font-size:0.85rem; color:var(--text-muted);">${r.address || ''}</span><br><br>
                             ${confirmBtn}<br>
                             <p style="font-weight:600; font-size:0.95rem;">${r.message}</p>
-                            <div style="background:var(--bg-subtle); color:var(--text-main); padding:10px; margin-top:10px; font-weight:900; font-size:1.5rem; text-transform:uppercase; border: 2px solid var(--border-dark); display: inline-block;">Total: ${r.total || '£5.00+'}</div>
+                            <div style="background:var(--bg-subtle); color:var(--text-main); padding:10px; margin-top:10px; font-weight:900; font-size:1.5rem; text-transform:uppercase; border: 2px solid var(--border-dark); display: inline-block;">Total: ${r.total || '£3.50+'}</div>
                         </div>`;
                 });
             }
@@ -2666,7 +4253,7 @@ Vision/Details: ${msg}
         storeSettings.textContent['exner-logo'] = url;
         document.getElementById('exner-logo').src = url;
         await saveGlobalSettings();
-        await customAlert("Exner Logo Updated & Saved to Cloud!");
+        await customAlert("Exner Logo Updated.");
         e.target.reset();
     }
 
@@ -2715,7 +4302,7 @@ Vision/Details: ${msg}
         await saveGlobalSettings();
         updateSaleBanner();
         renderHomePage(); renderCatalog(); renderExnerPage();
-        await customAlert(`Sale Started!`);
+        await customAlert(`Sale Started.`);
         e.target.reset();
     }
 
@@ -2785,7 +4372,9 @@ Vision/Details: ${msg}
         const stock = parseInt(document.getElementById(`${prefix}stock`).value);
         const desc = document.getElementById(`${prefix}desc`).value.trim();
         const colorsStr = document.getElementById(`${prefix}colors`).value;
-        const image = document.getElementById(`${prefix}image`).value.trim();
+        const rawImageInput = document.getElementById(`${prefix}image`).value.trim();
+        const formattedImages = formatImageListForStorage(rawImageInput);
+
         const isFeatured = storeType === 'exner' ? document.getElementById('exner-add-featured').checked : false;
         const isLimited = document.getElementById(`${prefix}limited`) ? document.getElementById(`${prefix}limited`).checked : false;
 
@@ -2807,7 +4396,7 @@ Vision/Details: ${msg}
             name,
             price,
             stock,
-            image,
+            image: formattedImages,
             description: desc,
             badge,
             colors,
@@ -2823,7 +4412,7 @@ Vision/Details: ${msg}
 
             products.push(newProd);
             localStorage.setItem('loom_products_v2', JSON.stringify(products));
-            await customAlert("Successfully added to the store!");
+            await customAlert("Product added to the store.");
             e.target.reset();
             renderHomePage(); renderCatalog(); renderExnerPage();
         } catch(err) {
@@ -2838,7 +4427,7 @@ Vision/Details: ${msg}
         document.getElementById('admin-category').value = activeProduct.category || "Bracelets";
         document.getElementById('admin-badge').value = activeProduct.badge || "NEW";
         document.getElementById('admin-limited-toggle').checked = (activeProduct.badge && activeProduct.badge.toUpperCase() === 'LIMITED EDITION');
-        document.getElementById('admin-image').value = ""; 
+        document.getElementById('admin-image').value = parseImageList(activeProduct.image).join('\n'); 
         document.getElementById('admin-price').value = activeProduct.price;
         document.getElementById('admin-stock').value = activeProduct.stock;
         document.getElementById('admin-desc').value = activeProduct.description;
@@ -2860,7 +4449,7 @@ Vision/Details: ${msg}
         activeProduct.description = document.getElementById('admin-desc').value;
 
         const imageInput = document.getElementById('admin-image').value.trim();
-        if (imageInput) activeProduct.image = imageInput;
+        if (imageInput) activeProduct.image = formatImageListForStorage(imageInput);
 
         let parsedColors = [];
         document.getElementById('admin-colors').value.split(',').forEach(pair => {
@@ -2887,7 +4476,7 @@ Vision/Details: ${msg}
 
     async function deleteAdminProduct() {
         if(!activeProduct) return;
-        if(await customConfirm(`Are you sure you want to completely delete "${activeProduct.name}"? This cannot be undone.`)) {
+        if(await customConfirm(`Are you sure you want to delete "${activeProduct.name}"?`)) {
             try {
                 if (_supabase) {
                     const { error } = await _supabase.from('products').delete().eq('id', activeProduct.id);
@@ -2916,7 +4505,6 @@ Vision/Details: ${msg}
     let buildModeBackup = null;
 
     function applyStaticElementStyles() {
-        // Reset inline overrides first
         document.querySelectorAll('.editable-text, .editable-image').forEach(el => {
             if (!el.id) return;
             const st = (storeSettings.elementStyles && storeSettings.elementStyles[el.id]) || null;
@@ -2997,6 +4585,7 @@ Vision/Details: ${msg}
             storeSettings = JSON.parse(JSON.stringify(buildModeBackup));
         }
         applyEditableContent();
+        applyAmbientTheme();
         exitBuildModeUI();
         renderHomePage();
         renderCatalog();
@@ -3073,7 +4662,7 @@ Vision/Details: ${msg}
         document.getElementById('block-properties').style.display = 'block';
 
         const isImg = el.tagName === 'IMG';
-        document.getElementById('inspector-target-label').innerText = isImg ? `Image Element (#${elId})` : `Text Element (#${elId})`;
+        document.getElementById('inspector-target-label').innerText = isImg ? `Image (#${elId})` : `Text (#${elId})`;
         document.getElementById('prop-content-label').innerText = isImg ? 'Image URL' : 'Text / HTML Content';
         document.getElementById('prop-content').value = isImg ? el.src : el.innerHTML;
 
@@ -3114,7 +4703,7 @@ Vision/Details: ${msg}
             });
         }
         applyStaticElementStyles();
-        customAlert("All hidden elements have been restored!");
+        customAlert("Hidden elements restored.");
     }
 
     function switchBuilderRightTab(tab) {
@@ -3166,17 +4755,17 @@ Vision/Details: ${msg}
     }
 
     function createBlockPreviewHTML(type) {
-        if (type === 'heading') return `<h2 style="font-size:2rem; font-weight:900; margin:0;">Preview Heading Block</h2>`;
-        if (type === 'paragraph') return `<p style="font-size:1rem; margin:0;">Preview paragraph text block will be placed here...</p>`;
-        if (type === 'quote') return `<blockquote style="border-left:4px solid var(--accent-blue); padding-left:1rem; font-style:italic; margin:0;">"Preview quote block..."</blockquote>`;
-        if (type === 'button') return `<button class="btn-primary" style="background:var(--accent-blue); color:#fff;">Preview Button</button>`;
-        if (type === 'image') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Scalable Image Block Preview ]</div>`;
-        if (type === 'gallery') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Multi-Image Gallery Grid Preview ]</div>`;
-        if (type === 'products') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Live Featured Products Showcase Preview ]</div>`;
-        if (type === 'video') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Video Player Preview ]</div>`;
+        if (type === 'heading') return `<h2 style="font-size:2rem; font-weight:900; margin:0;">Heading Block</h2>`;
+        if (type === 'paragraph') return `<p style="font-size:1rem; margin:0;">Paragraph text block...</p>`;
+        if (type === 'quote') return `<blockquote style="border-left:4px solid var(--accent-blue); padding-left:1rem; font-style:italic; margin:0;">"Quote block..."</blockquote>`;
+        if (type === 'button') return `<button class="btn-primary" style="background:var(--accent-blue); color:#fff;">Button</button>`;
+        if (type === 'image') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Image Block ]</div>`;
+        if (type === 'gallery') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Image Gallery Grid ]</div>`;
+        if (type === 'products') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Products Showcase ]</div>`;
+        if (type === 'video') return `<div style="padding:20px; text-align:center; font-weight:800;">[ Video Player ]</div>`;
         if (type === 'divider') return `<hr style="border:none; border-top:2px solid var(--border-dark);">`;
-        if (type === 'spacer') return `<div style="height:40px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">[ Vertical Spacer ]</div>`;
-        return `<div>Block Preview</div>`;
+        if (type === 'spacer') return `<div style="height:40px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">[ Spacer ]</div>`;
+        return `<div>Block</div>`;
     }
 
     function removeDragPreview() {
@@ -3297,7 +4886,7 @@ Vision/Details: ${msg}
         let newBlock = {
             id: 'blk_' + Date.now() + '_' + Math.floor(Math.random()*1000),
             type: type,
-            content: type === 'heading' ? 'New Section Heading' : (type==='paragraph' ? 'Click here to type your paragraph text...' : (type==='quote' ? 'A standout quote or callout.' : (type==='button' ? 'Explore Now' : (type==='products' ? 'Featured Collection' : '')))),
+            content: type === 'heading' ? 'New Section Heading' : (type==='paragraph' ? 'Click here to type your paragraph text...' : (type==='quote' ? 'A short quote or note.' : (type==='button' ? 'Shop Now' : (type==='products' ? 'Featured Products' : '')))),
             url: type === 'image' ? 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80' : (type==='video' ? 'https://assets.mixkit.co/videos/preview/mixkit-close-up-of-hands-crafting-a-necklace-41544-large.mp4' : (type==='gallery' ? defaultGalleryUrls : '')),
             productSource: 'featured',
             cols: 3,
@@ -3340,7 +4929,6 @@ Vision/Details: ${msg}
         }
     }
 
-    // Interactive Corner Drag-to-Scale Handler
     function startBlockResize(e, blockId) {
         if (!window.isBuildMode) return;
         e.preventDefault();
@@ -3530,7 +5118,6 @@ Vision/Details: ${msg}
         const maxWInput = parseInt(document.getElementById('prop-max-width').value) || 0;
         const fSizeInput = parseInt(document.getElementById('prop-fontsize').value) || 0;
 
-        // If a static element (like Exner Logo, Hero Title, etc.) is selected:
         if (selectedStaticElId) {
             const el = document.getElementById(selectedStaticElId);
             if (!el) return;
@@ -3607,10 +5194,12 @@ Vision/Details: ${msg}
 
         await saveGlobalSettings();
         buildModeBackup = JSON.parse(JSON.stringify(storeSettings));
-        await customAlert("All visual changes, scaled elements, galleries, product blocks, text, and colors have been published permanently to the Cloud!");
+        await customAlert("Changes published to the store.");
         exitBuildModeUI();
         renderHomePage();
         renderCatalog();
         renderExnerPage();
     }
 </script>
+</body>
+</html>
